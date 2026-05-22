@@ -1,22 +1,15 @@
 from fastapi import FastAPI, Request
-from dotenv import load_dotenv
 import anthropic
 import requests
 import os
 import json
 
-load_dotenv()
-
 app = FastAPI()
-
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-ZAPI_INSTANCE = os.getenv("ZAPI_INSTANCE")
-ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 
 mensagens_pendentes = {}
 
 def analisar_mensagem(texto):
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resposta = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,
@@ -37,7 +30,9 @@ Responda APENAS com o JSON, sem texto adicional."""
     return json.loads(resposta.content[0].text)
 
 def enviar_whatsapp(telefone, mensagem):
-    url = f"https://api.z-api.io/instances/{ZAPI_INSTANCE}/token/{ZAPI_TOKEN}/send-text"
+    instance = os.environ["ZAPI_INSTANCE"]
+    token = os.environ["ZAPI_TOKEN"]
+    url = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
     payload = {"phone": telefone, "message": mensagem}
     requests.post(url, json=payload)
 
@@ -62,9 +57,6 @@ async def webhook(request: Request):
         "analise": analise,
         "status": "pendente"
     }
-    
-    print(f"Nova mensagem de {telefone}: {texto}")
-    print(f"Análise: {analise}")
     
     return {"status": "recebido"}
 
