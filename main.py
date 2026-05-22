@@ -3,6 +3,7 @@ import anthropic
 import requests
 import os
 import json
+import re
 
 app = FastAPI()
 
@@ -17,17 +18,30 @@ def analisar_mensagem(texto):
             "role": "user",
             "content": f"""Você é assistente de um escritório jurídico especializado em BPC LOAS, inventário e licitações.
 
-Analise a mensagem do cliente abaixo e responda em JSON com:
+Analise a mensagem do cliente e responda SOMENTE com um JSON válido, sem nenhum texto antes ou depois.
+
+Formato exato:
+{{"urgencia": "alta", "area": "bpc_loas", "resposta": "sua resposta aqui"}}
+
+Valores possíveis:
 - urgencia: alta, media ou baixa
 - area: bpc_loas, inventario, licitacoes ou geral
-- resposta: uma resposta profissional e acolhedora para enviar ao cliente
 
-Mensagem do cliente: {texto}
-
-Responda APENAS com o JSON, sem texto adicional."""
+Mensagem do cliente: {texto}"""
         }]
     )
-    return json.loads(resposta.content[0].text)
+    
+    texto_resposta = resposta.content[0].text.strip()
+    
+    match = re.search(r'\{.*\}', texto_resposta, re.DOTALL)
+    if match:
+        return json.loads(match.group())
+    
+    return {
+        "urgencia": "media",
+        "area": "geral",
+        "resposta": texto_resposta
+    }
 
 def enviar_whatsapp(telefone, mensagem):
     instance = os.environ["ZAPI_INSTANCE"]
@@ -40,16 +54,11 @@ def enviar_whatsapp(telefone, mensagem):
 async def webhook(request: Request):
     data = await request.json()
     
-    print(f"PAYLOAD RECEBIDO: {data}")
-    
     if data.get("type") != "ReceivedCallback":
-        print(f"IGNORADO - tipo: {data.get('type')}")
         return {"status": "ignorado"}
     
     telefone = data.get("phone", "")
     texto = data.get("text", {}).get("message", "")
-    
-    print(f"TELEFONE: {telefone}, TEXTO: {texto}")
     
     if not texto:
         return {"status": "sem texto"}
