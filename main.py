@@ -55,9 +55,11 @@ Mensagem do cliente: {texto}"""
 def enviar_whatsapp(telefone, mensagem):
     instance = os.environ["ZAPI_INSTANCE"]
     token = os.environ["ZAPI_TOKEN"]
+    client_token = os.environ["ZAPI_CLIENT_TOKEN"]
     url = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
+    headers = {"Client-Token": client_token}
     payload = {"phone": telefone, "message": mensagem}
-    r = requests.post(url, json=payload)
+    r = requests.post(url, json=payload, headers=headers)
     print(f"Z-API resposta: {r.status_code} - {r.text}")
 
 @app.post("/webhook")
