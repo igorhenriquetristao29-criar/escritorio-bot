@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import anthropic
 import requests
 import os
@@ -7,6 +8,13 @@ import json
 import re
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 mensagens_pendentes = {}
 
@@ -49,7 +57,8 @@ def enviar_whatsapp(telefone, mensagem):
     token = os.environ["ZAPI_TOKEN"]
     url = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
     payload = {"phone": telefone, "message": mensagem}
-    requests.post(url, json=payload)
+    r = requests.post(url, json=payload)
+    print(f"Z-API resposta: {r.status_code} - {r.text}")
 
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -85,6 +94,8 @@ async def listar_pendentes():
 async def aprovar(telefone: str, request: Request):
     data = await request.json()
     mensagem_final = data.get("mensagem", "")
+    
+    print(f"APROVANDO: {telefone} - {mensagem_final}")
     
     if telefone not in mensagens_pendentes:
         return {"erro": "mensagem não encontrada"}
