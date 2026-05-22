@@ -68,6 +68,8 @@ async def webhook(request: Request):
     
     mensagens_pendentes[telefone] = {
         "telefone": telefone,
+        "nome": data.get("senderName", "Desconhecido"),
+        "foto": data.get("photo", ""),
         "mensagem_original": texto,
         "analise": analise,
         "status": "pendente"
