@@ -40,11 +40,16 @@ def enviar_whatsapp(telefone, mensagem):
 async def webhook(request: Request):
     data = await request.json()
     
+    print(f"PAYLOAD RECEBIDO: {data}")
+    
     if data.get("type") != "ReceivedCallback":
+        print(f"IGNORADO - tipo: {data.get('type')}")
         return {"status": "ignorado"}
     
     telefone = data.get("phone", "")
     texto = data.get("text", {}).get("message", "")
+    
+    print(f"TELEFONE: {telefone}, TEXTO: {texto}")
     
     if not texto:
         return {"status": "sem texto"}
