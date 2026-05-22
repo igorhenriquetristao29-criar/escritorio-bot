@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 import anthropic
 import requests
 import os
@@ -90,6 +91,10 @@ async def aprovar(telefone: str, request: Request):
     mensagens_pendentes[telefone]["status"] = "enviado"
     
     return {"status": "enviado"}
+
+@app.get("/painel")
+async def painel():
+    return FileResponse("painel.html")
 
 @app.get("/")
 async def root():
