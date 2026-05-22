@@ -18,6 +18,31 @@ app.add_middleware(
 
 mensagens_pendentes = {}
 
+IGOR = "5564981475621"
+LETICIA = "5564981177107"
+
+def notificar_equipe(nome, mensagem, urgencia, area):
+    instance = os.environ["ZAPI_INSTANCE"]
+    token = os.environ["ZAPI_TOKEN"]
+    client_token = os.environ["ZAPI_CLIENT_TOKEN"]
+    url = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
+    headers = {"Client-Token": client_token}
+    
+    emoji_urgencia = "🔴" if urgencia == "alta" else "🟡" if urgencia == "media" else "🟢"
+    
+    texto = f"""🔔 *Nova mensagem de cliente!*
+
+👤 *Cliente:* {nome}
+💬 *Mensagem:* "{mensagem}"
+{emoji_urgencia} *Urgência:* {urgencia.upper()}
+📁 *Área:* {area.upper()}
+
+👉 Acesse o painel para responder:
+https://web-production-444ef9.up.railway.app/painel"""
+
+    for numero in [IGOR, LETICIA]:
+        requests.post(url, json={"phone": numero, "message": texto}, headers=headers)
+
 def analisar_mensagem(texto):
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resposta = client.messages.create(
@@ -25,23 +50,24 @@ def analisar_mensagem(texto):
         max_tokens=1024,
         messages=[{
             "role": "user",
-            "content": f"""Você é assistente de um escritório jurídico especializado em BPC LOAS, inventário e licitações.
+            "content": f"""Você é atendente de um escritório jurídico especializado em BPC LOAS, inventário e licitações.
 
-Analise a mensagem do cliente e responda SOMENTE com um JSON válido, sem nenhum texto antes ou depois.
+REGRA PRINCIPAL: Adapte sua linguagem ao perfil do cliente.
+- Se o cliente escreve de forma simples, popular ou com erros → responda de forma simples, calorosa e fácil de entender. Evite termos técnicos.
+- Se o cliente escreve de forma formal ou técnica → responda na mesma altura, com vocabulário jurídico adequado.
+- SEMPRE seja humano, acolhedor e empático. Nunca robotizado.
+- Seja direto e objetivo. Não use frases longas desnecessárias.
+- Use o nome do cliente se souber.
 
-Formato exato:
-{{"urgencia": "alta", "area": "bpc_loas", "resposta": "sua resposta aqui"}}
+Analise a mensagem e responda SOMENTE com um JSON válido:
 
-Valores possíveis:
-- urgencia: alta, media ou baixa
-- area: bpc_loas, inventario, licitacoes ou geral
+{{"urgencia": "alta/media/baixa", "area": "bpc_loas/inventario/licitacoes/geral", "perfil": "simples/formal", "resposta": "sua resposta aqui"}}
 
 Mensagem do cliente: {texto}"""
         }]
     )
     
     texto_resposta = resposta.content[0].text.strip()
-    
     match = re.search(r'\{.*\}', texto_resposta, re.DOTALL)
     if match:
         return json.loads(match.group())
@@ -49,6 +75,7 @@ Mensagem do cliente: {texto}"""
     return {
         "urgencia": "media",
         "area": "geral",
+        "perfil": "simples",
         "resposta": texto_resposta
     }
 
@@ -71,20 +98,26 @@ async def webhook(request: Request):
     
     telefone = data.get("phone", "")
     texto = data.get("text", {}).get("message", "")
+    nome = data.get("senderName", "Cliente")
     
     if not texto:
         return {"status": "sem texto"}
+    
+    if telefone in [IGOR, LETICIA]:
+        return {"status": "ignorado - equipe"}
     
     analise = analisar_mensagem(texto)
     
     mensagens_pendentes[telefone] = {
         "telefone": telefone,
-        "nome": data.get("senderName", "Desconhecido"),
+        "nome": nome,
         "foto": data.get("photo", ""),
         "mensagem_original": texto,
         "analise": analise,
         "status": "pendente"
     }
+    
+    notificar_equipe(nome, texto, analise["urgencia"], analise["area"])
     
     return {"status": "recebido"}
 
@@ -96,8 +129,6 @@ async def listar_pendentes():
 async def aprovar(telefone: str, request: Request):
     data = await request.json()
     mensagem_final = data.get("mensagem", "")
-    
-    print(f"APROVANDO: {telefone} - {mensagem_final}")
     
     if telefone not in mensagens_pendentes:
         return {"erro": "mensagem não encontrada"}
