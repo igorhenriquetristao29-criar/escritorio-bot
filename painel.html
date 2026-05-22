@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Atendimento</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
+        h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; font-size: 24px; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .cliente { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 8px; }
+        .mensagem-original { background: #f0f2f5; padding: 10px; border-radius: 8px; margin-bottom: 12px; color: #555; font-style: italic; }
+        .badges { display: flex; gap: 8px; margin-bottom: 12px; }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .alta { background: #ffe0e0; color: #c0392b; }
+        .media { background: #fff3cd; color: #856404; }
+        .baixa { background: #d4edda; color: #155724; }
+        .bpc_loas { background: #cce5ff; color: #004085; }
+        .inventario { background: #e2d9f3; color: #4a235a; }
+        .licitacoes { background: #ffeeba; color: #856404; }
+        .geral { background: #e2e3e5; color: #383d41; }
+        .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; min-height: 100px; resize: vertical; margin-bottom: 12px; }
+        .botoes { display: flex; gap: 10px; }
+        button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-aprovar { background: #28a745; color: white; }
+        .btn-aprovar:hover { background: #218838; }
+        .btn-rejeitar { background: #dc3545; color: white; }
+        .btn-rejeitar:hover { background: #c82333; }
+        .enviado { opacity: 0.5; pointer-events: none; }
+        .tag-enviado { background: #28a745; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .vazio { text-align: center; color: #888; padding: 40px; font-size: 18px; }
+        .atualizar { display: block; margin: 0 auto 20px; padding: 10px 24px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>📋 Painel de Atendimento</h1>
+    <button class="atualizar" onclick="carregar()">🔄 Atualizar mensagens</button>
+    <div id="mensagens"></div>
+
+    <script>
+        const API = 'https://web-production-444ef9.up.railway.app';
+
+        async function carregar() {
+            const res = await fetch(`${API}/pendentes`);
+            const dados = await res.json();
+            const container = document.getElementById('mensagens');
+
+            if (dados.length === 0) {
+                container.innerHTML = '<div class="vazio">📭 Nenhuma mensagem pendente</div>';
+                return;
+            }
+
+            container.innerHTML = dados.map(m => `
+                <div class="card ${m.status === 'enviado' ? 'enviado' : ''}" id="card-${m.telefone}">
+                    <div class="cliente">📱 ${m.telefone}</div>
+                    <div class="mensagem-original">"${m.mensagem_original}"</div>
+                    <div class="badges">
+                        <span class="badge ${m.analise.urgencia}">⚡ ${m.analise.urgencia.toUpperCase()}</span>
+                        <span class="badge ${m.analise.area}">📁 ${m.analise.area.replace('_', ' ').toUpperCase()}</span>
+                        ${m.status === 'enviado' ? '<span class="badge tag-enviado">✅ ENVIADO</span>' : ''}
+                    </div>
+                    <div class="resposta-label">💬 Resposta sugerida pelo Claude:</div>
+                    <textarea id="texto-${m.telefone}">${m.analise.resposta}</textarea>
+                    <div class="botoes">
+                        <button class="btn-aprovar" onclick="aprovar('${m.telefone}')">✅ Aprovar e Enviar</button>
+                        <button class="btn-rejeitar" onclick="rejeitar('${m.telefone}')">❌ Rejeitar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function aprovar(telefone) {
+            const mensagem = document.getElementById(`texto-${telefone}`).value;
+            await fetch(`${API}/aprovar/${telefone}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mensagem})
+            });
+            alert('✅ Mensagem enviada!');
+            carregar();
+        }
+
+        function rejeitar(telefone) {
+            document.getElementById(`card-${telefone}`).classList.add('enviado');
+            alert('❌ Mensagem rejeitada.');
+        }
+
+        carregar();
+        setInterval(carregar, 30000);
+    </script>
+</body>
+</html>
