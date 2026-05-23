@@ -176,6 +176,10 @@ carregar_pendentes_do_db()
 # ─── HORÁRIO DE ATENDIMENTO ────────────────────────────────────────────────────
 
 def dentro_do_horario():
+    # Modo teste: ignora horário e fim de semana
+    if os.environ.get("MODO_TESTE") == "1":
+        return True
+
     brasilia = datetime.timezone(datetime.timedelta(hours=-3))
     agora = datetime.datetime.now(brasilia)
 
