@@ -32,21 +32,29 @@
         .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; }
         .aviso-fora-area { background: #e8f4fd; border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #004085; font-size: 13px; }
         textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; min-height: 100px; resize: vertical; margin-bottom: 12px; }
-        .botoes { display: flex; gap: 10px; flex-wrap: wrap; }
+        .botoes { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
         button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
         .btn-aprovar { background: #28a745; color: white; }
         .btn-aprovar:hover { background: #218838; }
         .btn-rejeitar { background: #dc3545; color: white; }
         .btn-rejeitar:hover { background: #c82333; }
+        .btn-opcao { background: #f8f9fa; border: 1px solid #ddd; color: #333; text-align: left; width: 100%; margin-bottom: 8px; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: normal; }
+        .btn-opcao:hover { background: #e9ecef; border-color: #28a745; }
+        .feedback-area { margin-top: 12px; display: none; }
+        .feedback-area textarea { min-height: 60px; margin-bottom: 8px; }
+        .feedback-label { font-size: 13px; color: #666; margin-bottom: 6px; }
+        .opcoes-area { margin-top: 12px; display: none; }
+        .opcoes-label { font-weight: bold; color: #333; margin-bottom: 8px; }
         .enviado { opacity: 0.5; pointer-events: none; }
         .tag-enviado { background: #28a745; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
         .vazio { text-align: center; color: #888; padding: 40px; font-size: 18px; }
         .atualizar { display: block; margin: 0 auto 20px; padding: 10px 24px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .gerando { color: #888; font-style: italic; margin-top: 8px; }
     </style>
 </head>
 <body>
-    <h1>📋 Painel de Atendimento</h1>
-    <button class="atualizar" onclick="carregar()">🔄 Atualizar mensagens</button>
+    <h1>Painel de Atendimento</h1>
+    <button class="atualizar" onclick="carregar()">Atualizar mensagens</button>
     <div id="mensagens"></div>
 
     <script>
@@ -58,7 +66,7 @@
             const container = document.getElementById('mensagens');
 
             if (dados.length === 0) {
-                container.innerHTML = '<div class="vazio">📭 Nenhuma mensagem pendente</div>';
+                container.innerHTML = '<div class="vazio">Nenhuma mensagem pendente</div>';
                 return;
             }
 
@@ -74,7 +82,7 @@
 
                 const avisoForaArea = foraArea ? `
                     <div class="aviso-fora-area">
-                        🔵 <strong>Fora da nossa área</strong> — Considere indicar um colega advogado especialista.
+                        Fora da nossa area — Considere indicar um colega advogado especialista.
                     </div>` : '';
 
                 return `
@@ -88,20 +96,71 @@
                     </div>
                     <div class="mensagem-original">"${m.mensagem_original}"</div>
                     <div class="badges">
-                        <span class="badge ${categoria}">${foraArea ? '🔵 FORA DA ÁREA' : '🟢 NOSSA ÁREA'}</span>
-                        <span class="badge ${m.analise.urgencia}">⚡ ${m.analise.urgencia.toUpperCase()}</span>
-                        <span class="badge ${m.analise.area}">📁 ${m.analise.area.replace('_', ' ').toUpperCase()}</span>
-                        ${m.status === 'enviado' ? '<span class="badge tag-enviado">✅ ENVIADO</span>' : ''}
+                        <span class="badge ${categoria}">${foraArea ? 'FORA DA AREA' : 'NOSSA AREA'}</span>
+                        <span class="badge ${m.analise.urgencia}">${m.analise.urgencia.toUpperCase()}</span>
+                        <span class="badge ${m.analise.area}">${m.analise.area.replace('_', ' ').toUpperCase()}</span>
+                        ${m.status === 'enviado' ? '<span class="badge tag-enviado">ENVIADO</span>' : ''}
                     </div>
                     ${avisoForaArea}
-                    <div class="resposta-label">💬 Resposta sugerida pelo Claude:</div>
+                    <div class="resposta-label">Resposta sugerida:</div>
                     <textarea id="texto-${m.telefone}">${m.analise.resposta}</textarea>
                     <div class="botoes">
-                        <button class="btn-aprovar" onclick="aprovar('${m.telefone}')">✅ Aprovar e Enviar</button>
-                        <button class="btn-rejeitar" onclick="rejeitar('${m.telefone}')">❌ Rejeitar</button>
+                        <button class="btn-aprovar" onclick="aprovar('${m.telefone}')">Aprovar e Enviar</button>
+                        <button class="btn-rejeitar" onclick="mostrarFeedback('${m.telefone}')">Rejeitar</button>
+                    </div>
+
+                    <div class="feedback-area" id="feedback-${m.telefone}">
+                        <div class="feedback-label">O que estava errado? Dê uma sugestão para o Claude gerar novas opcoes:</div>
+                        <textarea id="feedback-texto-${m.telefone}" placeholder="Ex: Tom muito formal, quero mais direto ao ponto..."></textarea>
+                        <button class="btn-aprovar" onclick="pedirNovasOpcoes('${m.telefone}')" style="background:#6c757d">Gerar novas opcoes</button>
+                    </div>
+
+                    <div class="opcoes-area" id="opcoes-${m.telefone}">
+                        <div class="opcoes-label">Escolha uma das opcoes geradas pelo Claude:</div>
+                        <div id="lista-opcoes-${m.telefone}"></div>
                     </div>
                 </div>`;
             }).join('');
+        }
+
+        function mostrarFeedback(telefone) {
+            document.getElementById(`feedback-${telefone}`).style.display = 'block';
+        }
+
+        async function pedirNovasOpcoes(telefone) {
+            const feedback = document.getElementById(`feedback-texto-${telefone}`).value;
+            const btn = event.target;
+            btn.textContent = 'Gerando opcoes...';
+            btn.disabled = true;
+
+            const res = await fetch(`${API}/rejeitar/${telefone}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({feedback})
+            });
+            const data = await res.json();
+
+            btn.textContent = 'Gerar novas opcoes';
+            btn.disabled = false;
+
+            const opcoes = data.analise.opcoes || [data.analise.resposta];
+            const listaEl = document.getElementById(`lista-opcoes-${telefone}`);
+            const opcoesEl = document.getElementById(`opcoes-${telefone}`);
+
+            listaEl.innerHTML = opcoes.map((op, i) => `
+                <button class="btn-opcao" onclick="selecionarOpcao('${telefone}', this)">
+                    <strong>Opcao ${i+1}:</strong> ${op}
+                </button>
+            `).join('');
+
+            opcoesEl.style.display = 'block';
+            document.getElementById(`feedback-${telefone}`).style.display = 'none';
+        }
+
+        function selecionarOpcao(telefone, btn) {
+            const texto = btn.innerText.replace(/^Opcao \d+:\s*/, '');
+            document.getElementById(`texto-${telefone}`).value = texto;
+            document.getElementById(`opcoes-${telefone}`).style.display = 'none';
         }
 
         async function aprovar(telefone) {
@@ -111,13 +170,8 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({mensagem})
             });
-            alert('✅ Mensagem enviada!');
+            alert('Mensagem enviada!');
             carregar();
-        }
-
-        function rejeitar(telefone) {
-            document.getElementById(`card-${telefone}`).classList.add('enviado');
-            alert('❌ Mensagem rejeitada.');
         }
 
         carregar();

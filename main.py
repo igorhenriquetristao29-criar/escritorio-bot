@@ -27,72 +27,87 @@ def notificar_equipe(nome, mensagem, urgencia, area, categoria):
     client_token = os.environ["ZAPI_CLIENT_TOKEN"]
     url = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
     headers = {"Client-Token": client_token}
-    
+
     if categoria == "fora_da_area":
-        emoji = "🔵"
-        tag = "FORA DA ÁREA"
+        tag = "FORA DA AREA"
     elif urgencia == "alta":
-        emoji = "🔴"
         tag = "URGENTE"
     elif urgencia == "media":
-        emoji = "🟡"
         tag = "NORMAL"
     else:
-        emoji = "🟢"
         tag = "BAIXA PRIORIDADE"
 
-    texto = f"""{emoji} *{tag} — Nova mensagem!*
+    texto = f"""{tag} - Nova mensagem!
 
-👤 *Cliente:* {nome}
-💬 *Mensagem:* "{mensagem}"
-📁 *Área:* {area.upper()}
+Cliente: {nome}
+Mensagem: "{mensagem}"
+Area: {area.upper()}
 
-👉 Painel:
+Painel:
 https://web-production-444ef9.up.railway.app/painel"""
 
     for numero in [IGOR, LETICIA]:
         requests.post(url, json={"phone": numero, "message": texto}, headers=headers)
 
-def analisar_mensagem(texto):
+def analisar_mensagem(texto, feedback=None):
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+    instrucao_feedback = ""
+    if feedback:
+        instrucao_feedback = f"""
+IMPORTANTE: A resposta anterior foi rejeitada. Feedback da equipe: "{feedback}"
+Gere 3 opcoes diferentes de resposta considerando esse feedback.
+Retorne as 3 opcoes no campo "opcoes" como uma lista.
+"""
+
     resposta = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=1024,
+        max_tokens=2048,
         messages=[{
             "role": "user",
-            "content": f"""Você é atendente de um escritório jurídico que atua nas seguintes áreas:
-- BPC LOAS (Benefício de Prestação Continuada)
-- Inventário e sucessões
-- Licitações e contratos administrativos
+            "content": f"""Voce e um captador de clientes de um escritorio juridico especializado em:
+- BPC LOAS (Beneficio de Prestacao Continuada para idosos e pessoas com deficiencia)
+- Inventario e sucessoes (partilha de bens apos falecimento)
+- Licitacoes e contratos administrativos (empresas participando de licitacoes publicas)
 
-Analise a mensagem recebida e classifique em uma das 4 categorias:
+SEU OBJETIVO PRINCIPAL: Transformar o contato em cliente com contrato fechado.
 
-1. "cliente_nossa_area" — pessoa buscando serviços jurídicos nas nossas áreas de atuação
-2. "cliente_fora_area" — pessoa buscando serviços jurídicos em outras áreas (ex: divórcio, trabalhista, criminal, etc)
-3. "conversa_pessoal" — conversa cotidiana, mensagem de amigo, familiar ou conhecido
-4. "irrelevante" — spam, propaganda, mensagem sem sentido
+REGRAS OBRIGATORIAS:
+1. NUNCA use emojis nas respostas ao cliente
+2. Adapte a linguagem: se o cliente escreve simples, responda simples. Se escreve formal, responda formal
+3. Seja curto e objetivo. Maximo 4 linhas por resposta
+4. NUNCA resolva o problema completamente. De informacao suficiente para gerar interesse e necessidade de contratar
+5. Crie senso de urgencia sutil quando pertinente (prazos, riscos de nao agir)
+6. SEMPRE termine com um proximo passo concreto
+7. Quando o cliente demonstrar interesse em consulta, pergunte como prefere: por ligacao, por mensagem/audio no WhatsApp ou presencialmente
+8. Se preferir presencial, peca as datas disponiveis dele e informe que verificara a agenda
+9. Para clientes fora da area: seja acolhedor, informe que nao e sua especialidade mas que pode indicar um colega especialista
 
-REGRAS DE RESPOSTA:
-- Adapte a linguagem ao perfil do cliente:
-  * Cliente escreve simples → responda simples, caloroso, sem juridiquês
-  * Cliente escreve formal/técnico → responda na mesma altura
-- Para "cliente_nossa_area": resposta acolhedora e profissional, colete mais informações
-- Para "cliente_fora_area": resposta acolhedora, explique que não é a área mas que podem indicar um colega especialista
-- Para "conversa_pessoal" e "irrelevante": deixe o campo resposta vazio ""
+CLASSIFICACOES:
+- "cliente_nossa_area": busca servicos nas nossas areas
+- "cliente_fora_area": busca servicos juridicos em outras areas
+- "conversa_pessoal": conversa cotidiana, nao e cliente
+- "irrelevante": spam ou sem sentido
 
-Responda SOMENTE com JSON válido:
+{instrucao_feedback}
 
+Responda SOMENTE com JSON valido:
+
+Sem feedback:
 {{"categoria": "cliente_nossa_area", "urgencia": "alta/media/baixa", "area": "bpc_loas/inventario/licitacoes/geral/fora_da_area", "perfil": "simples/formal", "resposta": "sua resposta aqui"}}
 
-Mensagem recebida: {texto}"""
+Com feedback (3 opcoes):
+{{"categoria": "cliente_nossa_area", "urgencia": "alta/media/baixa", "area": "bpc_loas/inventario/licitacoes/geral/fora_da_area", "perfil": "simples/formal", "resposta": "opcao 1 aqui", "opcoes": ["opcao 1 aqui", "opcao 2 aqui", "opcao 3 aqui"]}}
+
+Mensagem do cliente: {texto}"""
         }]
     )
-    
+
     texto_resposta = resposta.content[0].text.strip()
     match = re.search(r'\{.*\}', texto_resposta, re.DOTALL)
     if match:
         return json.loads(match.group())
-    
+
     return {
         "categoria": "irrelevante",
         "urgencia": "baixa",
@@ -115,11 +130,9 @@ def enviar_whatsapp(telefone, mensagem):
 async def webhook(request: Request):
     data = await request.json()
 
-    # Ignora grupos e newsletters
     if data.get("isGroup") or data.get("isNewsletter"):
         return {"status": "ignorado - grupo"}
 
-    # Ignora status/stories
     if data.get("isStatusReply"):
         return {"status": "ignorado - status"}
 
@@ -133,14 +146,12 @@ async def webhook(request: Request):
     if not texto:
         return {"status": "sem texto"}
 
-    # Ignora mensagens da própria equipe
     if telefone in [IGOR, LETICIA]:
         return {"status": "ignorado - equipe"}
 
     analise = analisar_mensagem(texto)
     categoria = analise.get("categoria", "irrelevante")
 
-    # Ignora conversas pessoais e irrelevantes
     if categoria in ["conversa_pessoal", "irrelevante"]:
         print(f"IGNORADO ({categoria}): {nome} - {texto}")
         return {"status": f"ignorado - {categoria}"}
@@ -174,6 +185,22 @@ async def aprovar(telefone: str, request: Request):
     mensagens_pendentes[telefone]["status"] = "enviado"
 
     return {"status": "enviado"}
+
+@app.post("/rejeitar/{telefone}")
+async def rejeitar(telefone: str, request: Request):
+    data = await request.json()
+    feedback = data.get("feedback", "")
+
+    if telefone not in mensagens_pendentes:
+        return {"erro": "mensagem não encontrada"}
+
+    mensagem_original = mensagens_pendentes[telefone]["mensagem_original"]
+    nova_analise = analisar_mensagem(mensagem_original, feedback=feedback)
+
+    mensagens_pendentes[telefone]["analise"] = nova_analise
+    mensagens_pendentes[telefone]["status"] = "pendente"
+
+    return {"status": "novas_opcoes", "analise": nova_analise}
 
 @app.get("/painel")
 async def painel():
