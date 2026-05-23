@@ -134,6 +134,7 @@
 
 <script>
     const API = 'https://web-production-444ef9.up.railway.app';
+    let operacaoEmAndamento = false;
 
     // ── AUTENTICAÇÃO ──────────────────────────────────────────────────────────
 
@@ -254,29 +255,40 @@
         const btn = event.target;
         btn.textContent = 'Gerando opções...';
         btn.disabled = true;
+        operacaoEmAndamento = true;
 
-        const res = await fetch(`${API}/rejeitar/${telefone}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({feedback})
-        });
-        const data = await res.json();
+        try {
+            const res = await fetch(`${API}/rejeitar/${telefone}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({feedback})
+            });
+            const data = await res.json();
 
-        btn.textContent = 'Gerar novas opções';
-        btn.disabled = false;
+            if (data.erro) {
+                alert('Erro: ' + data.erro);
+                return;
+            }
 
-        const opcoes = data.analise.opcoes || [data.analise.resposta];
-        const listaEl = document.getElementById(`lista-opcoes-${telefone}`);
-        const opcoesEl = document.getElementById(`opcoes-${telefone}`);
+            const opcoes = data.analise.opcoes || [data.analise.resposta];
+            const listaEl = document.getElementById(`lista-opcoes-${telefone}`);
+            const opcoesEl = document.getElementById(`opcoes-${telefone}`);
 
-        listaEl.innerHTML = opcoes.map((op, i) => `
-            <button class="btn-opcao" onclick="selecionarOpcao('${telefone}', this)">
-                <strong>Opção ${i+1}:</strong> ${op}
-            </button>
-        `).join('');
+            listaEl.innerHTML = opcoes.map((op, i) => `
+                <button class="btn-opcao" onclick="selecionarOpcao('${telefone}', this)">
+                    <strong>Opção ${i+1}:</strong> ${op}
+                </button>
+            `).join('');
 
-        opcoesEl.style.display = 'block';
-        document.getElementById(`feedback-${telefone}`).style.display = 'none';
+            opcoesEl.style.display = 'block';
+            document.getElementById(`feedback-${telefone}`).style.display = 'none';
+        } catch (e) {
+            alert('Erro de conexão. Tente novamente.');
+        } finally {
+            btn.textContent = 'Gerar novas opções';
+            btn.disabled = false;
+            operacaoEmAndamento = false;
+        }
     }
 
     function selecionarOpcao(telefone, btn) {
@@ -305,7 +317,8 @@
     if (localStorage.getItem('painel_logado') === '1') carregar();
 
     function temDigitacaoAtiva() {
-        // Não atualiza se o usuário estiver digitando em qualquer campo de feedback
+        // Não atualiza se houver operação em andamento ou usuário digitando
+        if (operacaoEmAndamento) return true;
         const campos = document.querySelectorAll('textarea');
         for (const campo of campos) {
             if (document.activeElement === campo || campo.value.trim() !== '') return true;
