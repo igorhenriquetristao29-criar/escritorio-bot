@@ -233,55 +233,49 @@ https://web-production-444ef9.up.railway.app/painel"""
 def analisar_mensagem(texto, feedback=None):
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-    instrucao_feedback = ""
     if feedback:
-        instrucao_feedback = f"""
-IMPORTANTE: A resposta anterior foi rejeitada. Feedback da equipe: "{feedback}"
-Gere 3 opcoes diferentes de resposta considerando esse feedback.
-Retorne as 3 opcoes no campo "opcoes" como uma lista.
-"""
+        instrucao_feedback = f'IMPORTANTE: A resposta anterior foi rejeitada. Feedback da equipe: "{feedback}". Gere 3 opções diferentes de resposta considerando esse feedback. Coloque todas as 3 no campo "opcoes" e repita a melhor no campo "resposta".'
+        formato_json = '{{"categoria": "...", "urgencia": "alta/media/baixa", "area": "bpc_loas/inventario/licitacoes/geral/fora_da_area", "perfil": "simples/formal", "resposta": "melhor opcao aqui", "opcoes": ["opcao 1", "opcao 2", "opcao 3"]}}'
+    else:
+        instrucao_feedback = ""
+        formato_json = '{{"categoria": "...", "urgencia": "alta/media/baixa", "area": "bpc_loas/inventario/licitacoes/geral/fora_da_area", "perfil": "simples/formal", "resposta": "sua resposta ao cliente aqui"}}'
 
     resposta = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=2048,
         messages=[{
             "role": "user",
-            "content": f"""Voce e um captador de clientes de um escritorio juridico especializado em:
-- BPC LOAS (Beneficio de Prestacao Continuada para idosos e pessoas com deficiencia)
-- Inventario e sucessoes (partilha de bens apos falecimento)
-- Licitacoes e contratos administrativos (empresas participando de licitacoes publicas)
+            "content": f"""Você é um captador de clientes de um escritório jurídico especializado em:
+- BPC LOAS (Benefício de Prestação Continuada para idosos e pessoas com deficiência)
+- Inventário e sucessões (partilha de bens após falecimento)
+- Licitações e contratos administrativos (empresas participando de licitações públicas)
 
 SEU OBJETIVO PRINCIPAL: Transformar o contato em cliente com contrato fechado.
 
-REGRAS OBRIGATORIAS:
+REGRAS OBRIGATÓRIAS:
 1. NUNCA use emojis nas respostas ao cliente
-2. Use SEMPRE português brasileiro correto: acentuação, pontuação, ortografia e gramática impecáveis, seguindo todas as normas da língua portuguesa
-3. Adapte a linguagem: se o cliente escreve simples, responda simples. Se escreve formal, responda formal
+2. Use SEMPRE português brasileiro correto: acentuação, pontuação, ortografia e gramática impecáveis
+3. Adapte a linguagem: se o cliente escreve simples, responda simples; se escreve formal, responda formal
 4. Seja curto e objetivo. Máximo 4 linhas por resposta
-4. NUNCA resolva o problema completamente. De informacao suficiente para gerar interesse e necessidade de contratar
-5. Crie senso de urgencia sutil quando pertinente (prazos, riscos de nao agir)
-6. SEMPRE termine com um proximo passo concreto
-7. Quando o cliente demonstrar interesse em consulta, pergunte como prefere: por ligacao, por mensagem/audio no WhatsApp ou presencialmente
-8. Se preferir presencial, peca as datas disponiveis dele e informe que verificara a agenda
-9. Para clientes fora da area: seja acolhedor, informe que nao e sua especialidade mas que pode indicar um colega especialista
+5. NUNCA resolva o problema completamente — gere interesse e necessidade de contratar
+6. Crie senso de urgência sutil quando pertinente (prazos, riscos de não agir)
+7. SEMPRE termine com um próximo passo concreto
+8. Quando o cliente quiser consulta, pergunte como prefere: ligação, WhatsApp/áudio ou presencialmente
+9. Se preferir presencial, peça as datas disponíveis e informe que verificará a agenda
+10. Para clientes fora da área: seja acolhedor e ofereça indicar um colega especialista
 
-CLASSIFICACOES:
-- "cliente_nossa_area": busca servicos nas nossas areas
-- "cliente_fora_area": busca servicos juridicos em outras areas
-- "conversa_pessoal": conversa cotidiana, nao e cliente
+CLASSIFICAÇÕES possíveis:
+- "cliente_nossa_area": busca serviços nas nossas áreas
+- "cliente_fora_area": busca serviços jurídicos em outras áreas
+- "conversa_pessoal": conversa cotidiana, não é cliente
 - "irrelevante": spam ou sem sentido
 
 {instrucao_feedback}
 
-Responda SOMENTE com JSON valido:
+Mensagem do cliente: {texto}
 
-Sem feedback:
-{{"categoria": "cliente_nossa_area", "urgencia": "alta/media/baixa", "area": "bpc_loas/inventario/licitacoes/geral/fora_da_area", "perfil": "simples/formal", "resposta": "sua resposta aqui"}}
-
-Com feedback (3 opcoes):
-{{"categoria": "cliente_nossa_area", "urgencia": "alta/media/baixa", "area": "bpc_loas/inventario/licitacoes/geral/fora_da_area", "perfil": "simples/formal", "resposta": "opcao 1 aqui", "opcoes": ["opcao 1 aqui", "opcao 2 aqui", "opcao 3 aqui"]}}
-
-Mensagem do cliente: {texto}"""
+Responda SOMENTE com JSON válido, sem explicações, sem markdown:
+{formato_json}"""
         }]
     )
 
@@ -372,7 +366,7 @@ async def webhook(request: Request):
 
 @app.get("/pendentes")
 async def listar_pendentes():
-    return list(mensagens_pendentes.values())
+    return [m for m in mensagens_pendentes.values() if m["status"] == "pendente"]
 
 @app.post("/aprovar/{telefone}")
 async def aprovar(telefone: str, request: Request):
