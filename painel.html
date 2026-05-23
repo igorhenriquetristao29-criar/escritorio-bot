@@ -6,8 +6,61 @@
     <title>Painel de Atendimento</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
-        h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; font-size: 24px; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+
+        /* ── LOGIN ── */
+        #tela-login {
+            position: fixed; inset: 0; background: #1a1a2e;
+            display: flex; align-items: center; justify-content: center; z-index: 9999;
+        }
+        .login-box {
+            background: white; border-radius: 16px; padding: 40px 36px; width: 340px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4); text-align: center;
+        }
+        .login-box h2 { color: #1a1a2e; margin-bottom: 6px; font-size: 22px; }
+        .login-box p { color: #888; font-size: 13px; margin-bottom: 24px; }
+        .login-box input {
+            width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px;
+            font-size: 15px; margin-bottom: 14px; outline: none;
+        }
+        .login-box input:focus { border-color: #007bff; }
+        .login-box button {
+            width: 100%; padding: 12px; background: #007bff; color: white;
+            border: none; border-radius: 8px; font-size: 15px; font-weight: bold;
+            cursor: pointer;
+        }
+        .login-box button:hover { background: #0056b3; }
+        .login-erro { color: #dc3545; font-size: 13px; margin-top: 10px; display: none; }
+
+        /* ── CABEÇALHO ── */
+        header {
+            background: #1a1a2e; color: white; padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        header h1 { font-size: 20px; }
+        .header-links { display: flex; gap: 12px; align-items: center; }
+        .header-links a {
+            color: #adb5bd; text-decoration: none; font-size: 13px;
+            padding: 6px 12px; border-radius: 6px; border: 1px solid #495057;
+        }
+        .header-links a:hover { background: #343a40; color: white; }
+        .btn-sair {
+            background: none; border: 1px solid #dc3545; color: #dc3545;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-sair:hover { background: #dc3545; color: white; }
+
+        /* ── CONTEÚDO ── */
+        main { padding: 20px; max-width: 800px; margin: 0 auto; }
+        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .btn-atualizar {
+            padding: 10px 20px; background: #007bff; color: white; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;
+        }
+        .btn-atualizar:hover { background: #0056b3; }
+        .contador { color: #666; font-size: 14px; }
+
+        /* ── CARDS ── */
         .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .card.fora-area { border-left: 4px solid #007bff; }
         .card.nossa-area { border-left: 4px solid #28a745; }
@@ -27,10 +80,8 @@
         .licitacoes { background: #ffeeba; color: #856404; }
         .fora_da_area { background: #cce5ff; color: #004085; }
         .geral { background: #e2e3e5; color: #383d41; }
-        .cliente_fora_area { background: #007bff; color: white; }
-        .cliente_nossa_area { background: #28a745; color: white; }
-        .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; }
         .aviso-fora-area { background: #e8f4fd; border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #004085; font-size: 13px; }
+        .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; }
         textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; min-height: 100px; resize: vertical; margin-bottom: 12px; }
         .botoes { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
         button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
@@ -47,135 +98,214 @@
         .opcoes-label { font-weight: bold; color: #333; margin-bottom: 8px; }
         .enviado { opacity: 0.5; pointer-events: none; }
         .tag-enviado { background: #28a745; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
-        .vazio { text-align: center; color: #888; padding: 40px; font-size: 18px; }
-        .atualizar { display: block; margin: 0 auto 20px; padding: 10px 24px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
-        .gerando { color: #888; font-style: italic; margin-top: 8px; }
+        .vazio { text-align: center; color: #888; padding: 60px; font-size: 18px; }
     </style>
 </head>
 <body>
+
+<!-- ── TELA DE LOGIN ── -->
+<div id="tela-login">
+    <div class="login-box">
+        <h2>Painel de Atendimento</h2>
+        <p>Letícia Marques Advocacia</p>
+        <input type="password" id="campo-senha" placeholder="Digite a senha" onkeydown="if(event.key==='Enter') entrar()">
+        <button onclick="entrar()">Entrar</button>
+        <div class="login-erro" id="erro-login">Senha incorreta. Tente novamente.</div>
+    </div>
+</div>
+
+<!-- ── CABEÇALHO ── -->
+<header>
     <h1>Painel de Atendimento</h1>
-    <button class="atualizar" onclick="carregar()">Atualizar mensagens</button>
+    <div class="header-links">
+        <a href="/relatorios">Relatórios</a>
+        <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+</header>
+
+<!-- ── CONTEÚDO ── -->
+<main>
+    <div class="toolbar">
+        <button class="btn-atualizar" onclick="carregar()">Atualizar mensagens</button>
+        <span class="contador" id="contador"></span>
+    </div>
     <div id="mensagens"></div>
+</main>
 
-    <script>
-        const API = 'https://web-production-444ef9.up.railway.app';
+<script>
+    const API = 'https://web-production-444ef9.up.railway.app';
 
-        async function carregar() {
-            const res = await fetch(`${API}/pendentes`);
-            const dados = await res.json();
-            const container = document.getElementById('mensagens');
+    // ── AUTENTICAÇÃO ──────────────────────────────────────────────────────────
 
-            if (dados.length === 0) {
-                container.innerHTML = '<div class="vazio">Nenhuma mensagem pendente</div>';
-                return;
+    function verificarLogin() {
+        if (localStorage.getItem('painel_logado') === '1') {
+            document.getElementById('tela-login').style.display = 'none';
+        }
+    }
+
+    async function entrar() {
+        const senha = document.getElementById('campo-senha').value;
+        const erroEl = document.getElementById('erro-login');
+        erroEl.style.display = 'none';
+
+        try {
+            const res = await fetch(`${API}/login`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({senha})
+            });
+            if (res.ok) {
+                localStorage.setItem('painel_logado', '1');
+                document.getElementById('tela-login').style.display = 'none';
+                carregar();
+            } else {
+                erroEl.style.display = 'block';
+                document.getElementById('campo-senha').value = '';
+                document.getElementById('campo-senha').focus();
             }
+        } catch (e) {
+            erroEl.textContent = 'Erro de conexão. Tente novamente.';
+            erroEl.style.display = 'block';
+        }
+    }
 
-            container.innerHTML = dados.map(m => {
-                const inicial = (m.nome || '?')[0].toUpperCase();
-                const fotoHtml = m.foto
-                    ? `<img class="foto" src="${m.foto}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="foto-placeholder" style="display:none">${inicial}</div>`
-                    : `<div class="foto-placeholder">${inicial}</div>`;
+    function sair() {
+        localStorage.removeItem('painel_logado');
+        location.reload();
+    }
 
-                const categoria = m.analise.categoria || 'cliente_nossa_area';
-                const foraArea = categoria === 'cliente_fora_area';
-                const cardClass = foraArea ? 'fora-area' : 'nossa-area';
+    // ── MENSAGENS ─────────────────────────────────────────────────────────────
 
-                const avisoForaArea = foraArea ? `
-                    <div class="aviso-fora-area">
-                        Fora da nossa area — Considere indicar um colega advogado especialista.
-                    </div>` : '';
+    async function carregar() {
+        const res = await fetch(`${API}/pendentes`);
+        const dados = await res.json();
+        const container = document.getElementById('mensagens');
+        const contador = document.getElementById('contador');
 
-                return `
-                <div class="card ${cardClass} ${m.status === 'enviado' ? 'enviado' : ''}" id="card-${m.telefone}">
-                    <div class="cliente-info">
-                        ${fotoHtml}
-                        <div>
-                            <div class="cliente-nome">${m.nome || 'Desconhecido'}</div>
-                            <div class="cliente-tel">${m.telefone}</div>
-                        </div>
-                    </div>
-                    <div class="mensagem-original">"${m.mensagem_original}"</div>
-                    <div class="badges">
-                        <span class="badge ${categoria}">${foraArea ? 'FORA DA AREA' : 'NOSSA AREA'}</span>
-                        <span class="badge ${m.analise.urgencia}">${m.analise.urgencia.toUpperCase()}</span>
-                        <span class="badge ${m.analise.area}">${m.analise.area.replace('_', ' ').toUpperCase()}</span>
-                        ${m.status === 'enviado' ? '<span class="badge tag-enviado">ENVIADO</span>' : ''}
-                    </div>
-                    ${avisoForaArea}
-                    <div class="resposta-label">Resposta sugerida:</div>
-                    <textarea id="texto-${m.telefone}">${m.analise.resposta}</textarea>
-                    <div class="botoes">
-                        <button class="btn-aprovar" onclick="aprovar('${m.telefone}')">Aprovar e Enviar</button>
-                        <button class="btn-rejeitar" onclick="mostrarFeedback('${m.telefone}')">Rejeitar</button>
-                    </div>
+        const pendentes = dados.filter(m => m.status !== 'enviado');
+        contador.textContent = pendentes.length > 0
+            ? `${pendentes.length} mensagem(ns) aguardando`
+            : 'Nenhuma pendente';
 
-                    <div class="feedback-area" id="feedback-${m.telefone}">
-                        <div class="feedback-label">O que estava errado? Dê uma sugestão para o Claude gerar novas opcoes:</div>
-                        <textarea id="feedback-texto-${m.telefone}" placeholder="Ex: Tom muito formal, quero mais direto ao ponto..."></textarea>
-                        <button class="btn-aprovar" onclick="pedirNovasOpcoes('${m.telefone}')" style="background:#6c757d">Gerar novas opcoes</button>
-                    </div>
-
-                    <div class="opcoes-area" id="opcoes-${m.telefone}">
-                        <div class="opcoes-label">Escolha uma das opcoes geradas pelo Claude:</div>
-                        <div id="lista-opcoes-${m.telefone}"></div>
-                    </div>
-                </div>`;
-            }).join('');
+        if (dados.length === 0) {
+            container.innerHTML = '<div class="vazio">Nenhuma mensagem pendente</div>';
+            return;
         }
 
-        function mostrarFeedback(telefone) {
-            document.getElementById(`feedback-${telefone}`).style.display = 'block';
-        }
+        container.innerHTML = dados.map(m => {
+            const inicial = (m.nome || '?')[0].toUpperCase();
+            const fotoHtml = m.foto
+                ? `<img class="foto" src="${m.foto}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="foto-placeholder" style="display:none">${inicial}</div>`
+                : `<div class="foto-placeholder">${inicial}</div>`;
 
-        async function pedirNovasOpcoes(telefone) {
-            const feedback = document.getElementById(`feedback-texto-${telefone}`).value;
-            const btn = event.target;
-            btn.textContent = 'Gerando opcoes...';
-            btn.disabled = true;
+            const categoria = m.analise.categoria || 'cliente_nossa_area';
+            const foraArea = categoria === 'cliente_fora_area';
+            const cardClass = foraArea ? 'fora-area' : 'nossa-area';
 
-            const res = await fetch(`${API}/rejeitar/${telefone}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({feedback})
-            });
-            const data = await res.json();
+            const avisoForaArea = foraArea ? `
+                <div class="aviso-fora-area">
+                    Fora da nossa área — Considere indicar um colega advogado especialista.
+                </div>` : '';
 
-            btn.textContent = 'Gerar novas opcoes';
-            btn.disabled = false;
+            return `
+            <div class="card ${cardClass} ${m.status === 'enviado' ? 'enviado' : ''}" id="card-${m.telefone}">
+                <div class="cliente-info">
+                    ${fotoHtml}
+                    <div>
+                        <div class="cliente-nome">${m.nome || 'Desconhecido'}</div>
+                        <div class="cliente-tel">${m.telefone}</div>
+                    </div>
+                </div>
+                <div class="mensagem-original">"${m.mensagem_original}"</div>
+                <div class="badges">
+                    <span class="badge ${categoria}">${foraArea ? 'FORA DA ÁREA' : 'NOSSA ÁREA'}</span>
+                    <span class="badge ${m.analise.urgencia}">${(m.analise.urgencia || '').toUpperCase()}</span>
+                    <span class="badge ${m.analise.area}">${(m.analise.area || '').replace(/_/g, ' ').toUpperCase()}</span>
+                    ${m.status === 'enviado' ? '<span class="badge tag-enviado">ENVIADO</span>' : ''}
+                </div>
+                ${avisoForaArea}
+                <div class="resposta-label">Resposta sugerida:</div>
+                <textarea id="texto-${m.telefone}">${m.analise.resposta || ''}</textarea>
+                <div class="botoes">
+                    <button class="btn-aprovar" onclick="aprovar('${m.telefone}')">Aprovar e Enviar</button>
+                    <button class="btn-rejeitar" onclick="mostrarFeedback('${m.telefone}')">Rejeitar</button>
+                </div>
 
-            const opcoes = data.analise.opcoes || [data.analise.resposta];
-            const listaEl = document.getElementById(`lista-opcoes-${telefone}`);
-            const opcoesEl = document.getElementById(`opcoes-${telefone}`);
+                <div class="feedback-area" id="feedback-${m.telefone}">
+                    <div class="feedback-label">O que estava errado? Dê uma sugestão para o Claude gerar novas opções:</div>
+                    <textarea id="feedback-texto-${m.telefone}" placeholder="Ex: Tom muito formal, quero mais direto ao ponto..."></textarea>
+                    <button class="btn-aprovar" onclick="pedirNovasOpcoes('${m.telefone}')" style="background:#6c757d">Gerar novas opções</button>
+                </div>
 
-            listaEl.innerHTML = opcoes.map((op, i) => `
-                <button class="btn-opcao" onclick="selecionarOpcao('${telefone}', this)">
-                    <strong>Opcao ${i+1}:</strong> ${op}
-                </button>
-            `).join('');
+                <div class="opcoes-area" id="opcoes-${m.telefone}">
+                    <div class="opcoes-label">Escolha uma das opções geradas pelo Claude:</div>
+                    <div id="lista-opcoes-${m.telefone}"></div>
+                </div>
+            </div>`;
+        }).join('');
+    }
 
-            opcoesEl.style.display = 'block';
-            document.getElementById(`feedback-${telefone}`).style.display = 'none';
-        }
+    function mostrarFeedback(telefone) {
+        document.getElementById(`feedback-${telefone}`).style.display = 'block';
+    }
 
-        function selecionarOpcao(telefone, btn) {
-            const texto = btn.innerText.replace(/^Opcao \d+:\s*/, '');
-            document.getElementById(`texto-${telefone}`).value = texto;
-            document.getElementById(`opcoes-${telefone}`).style.display = 'none';
-        }
+    async function pedirNovasOpcoes(telefone) {
+        const feedback = document.getElementById(`feedback-texto-${telefone}`).value;
+        const btn = event.target;
+        btn.textContent = 'Gerando opções...';
+        btn.disabled = true;
 
-        async function aprovar(telefone) {
-            const mensagem = document.getElementById(`texto-${telefone}`).value;
-            await fetch(`${API}/aprovar/${telefone}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({mensagem})
-            });
-            alert('Mensagem enviada!');
+        const res = await fetch(`${API}/rejeitar/${telefone}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({feedback})
+        });
+        const data = await res.json();
+
+        btn.textContent = 'Gerar novas opções';
+        btn.disabled = false;
+
+        const opcoes = data.analise.opcoes || [data.analise.resposta];
+        const listaEl = document.getElementById(`lista-opcoes-${telefone}`);
+        const opcoesEl = document.getElementById(`opcoes-${telefone}`);
+
+        listaEl.innerHTML = opcoes.map((op, i) => `
+            <button class="btn-opcao" onclick="selecionarOpcao('${telefone}', this)">
+                <strong>Opção ${i+1}:</strong> ${op}
+            </button>
+        `).join('');
+
+        opcoesEl.style.display = 'block';
+        document.getElementById(`feedback-${telefone}`).style.display = 'none';
+    }
+
+    function selecionarOpcao(telefone, btn) {
+        const texto = btn.innerText.replace(/^Opção \d+:\s*/, '');
+        document.getElementById(`texto-${telefone}`).value = texto;
+        document.getElementById(`opcoes-${telefone}`).style.display = 'none';
+    }
+
+    async function aprovar(telefone) {
+        const mensagem = document.getElementById(`texto-${telefone}`).value;
+        const res = await fetch(`${API}/aprovar/${telefone}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mensagem})
+        });
+        if (res.ok) {
+            alert('Mensagem enviada com sucesso!');
             carregar();
+        } else {
+            alert('Erro ao enviar. Tente novamente.');
         }
+    }
 
-        carregar();
-        setInterval(carregar, 30000);
-    </script>
+    // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────
+    verificarLogin();
+    if (localStorage.getItem('painel_logado') === '1') carregar();
+    setInterval(() => {
+        if (localStorage.getItem('painel_logado') === '1') carregar();
+    }, 30000);
+</script>
 </body>
 </html>

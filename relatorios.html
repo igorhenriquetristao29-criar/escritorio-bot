@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios — Letícia Marques Advocacia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+
+        header {
+            background: #1a1a2e; color: white; padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        header h1 { font-size: 20px; }
+        .header-links { display: flex; gap: 12px; align-items: center; }
+        .header-links a {
+            color: #adb5bd; text-decoration: none; font-size: 13px;
+            padding: 6px 12px; border-radius: 6px; border: 1px solid #495057;
+        }
+        .header-links a:hover { background: #343a40; color: white; }
+        .btn-sair {
+            background: none; border: 1px solid #dc3545; color: #dc3545;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-sair:hover { background: #dc3545; color: white; }
+
+        main { padding: 24px; max-width: 900px; margin: 0 auto; }
+
+        /* ── CARDS DE RESUMO ── */
+        .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .card-resumo {
+            background: white; border-radius: 12px; padding: 20px; text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .card-resumo .numero { font-size: 36px; font-weight: bold; color: #1a1a2e; }
+        .card-resumo .label { font-size: 13px; color: #888; margin-top: 4px; }
+        .card-resumo.verde .numero { color: #28a745; }
+        .card-resumo.azul .numero { color: #007bff; }
+        .card-resumo.amarelo .numero { color: #ffc107; }
+
+        /* ── SEÇÕES ── */
+        .secao { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .secao h2 { font-size: 16px; color: #333; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+
+        /* ── BARRAS DE PROGRESSO ── */
+        .barra-row { margin-bottom: 12px; }
+        .barra-label { display: flex; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 4px; }
+        .barra-bg { background: #f0f2f5; border-radius: 6px; height: 14px; overflow: hidden; }
+        .barra-fill { height: 100%; border-radius: 6px; background: #007bff; transition: width 0.6s ease; }
+        .barra-fill.bpc_loas { background: #007bff; }
+        .barra-fill.inventario { background: #6f42c1; }
+        .barra-fill.licitacoes { background: #fd7e14; }
+        .barra-fill.fora_da_area { background: #6c757d; }
+        .barra-fill.geral { background: #17a2b8; }
+
+        /* ── TABELA ── */
+        .tabela-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8f9fa; padding: 10px 12px; text-align: left; color: #555; font-weight: bold; border-bottom: 2px solid #dee2e6; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; color: #333; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8f9fa; }
+
+        /* ── BADGES ── */
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        .enviado { background: #d4edda; color: #155724; }
+        .pendente { background: #fff3cd; color: #856404; }
+        .alta { background: #ffe0e0; color: #c0392b; }
+        .media { background: #fff3cd; color: #856404; }
+        .baixa { background: #d4edda; color: #155724; }
+
+        .sem-dados { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
+
+        .btn-atualizar {
+            padding: 8px 18px; background: #007bff; color: white; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 13px; margin-bottom: 20px;
+        }
+        .btn-atualizar:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Relatórios</h1>
+    <div class="header-links">
+        <a href="/painel">Painel</a>
+        <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+</header>
+
+<main>
+    <button class="btn-atualizar" onclick="carregar()">Atualizar dados</button>
+
+    <!-- Resumo geral -->
+    <div class="resumo" id="resumo">
+        <div class="card-resumo"><div class="numero" id="total-geral">—</div><div class="label">Total de contatos</div></div>
+        <div class="card-resumo verde"><div class="numero" id="total-enviados">—</div><div class="label">Mensagens enviadas</div></div>
+        <div class="card-resumo amarelo"><div class="numero" id="total-pendentes">—</div><div class="label">Ainda pendentes</div></div>
+        <div class="card-resumo azul"><div class="numero" id="total-mes">—</div><div class="label">Neste mês</div></div>
+    </div>
+
+    <!-- Por área -->
+    <div class="secao">
+        <h2>Contatos por área</h2>
+        <div id="por-area"><div class="sem-dados">Carregando...</div></div>
+    </div>
+
+    <!-- Por mês -->
+    <div class="secao">
+        <h2>Histórico mensal</h2>
+        <div id="por-mes"><div class="sem-dados">Carregando...</div></div>
+    </div>
+
+    <!-- Últimas 50 mensagens -->
+    <div class="secao">
+        <h2>Últimos 50 contatos</h2>
+        <div class="tabela-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Mensagem</th>
+                        <th>Área</th>
+                        <th>Urgência</th>
+                        <th>Status</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-ultimas"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script>
+    const API = 'https://web-production-444ef9.up.railway.app';
+
+    // Verifica login
+    if (localStorage.getItem('painel_logado') !== '1') {
+        window.location.href = '/painel';
+    }
+
+    function sair() {
+        localStorage.removeItem('painel_logado');
+        window.location.href = '/painel';
+    }
+
+    const AREAS = {
+        bpc_loas: 'BPC LOAS',
+        inventario: 'Inventário',
+        licitacoes: 'Licitações',
+        fora_da_area: 'Fora da Área',
+        geral: 'Geral'
+    };
+
+    function nomeArea(area) {
+        return AREAS[area] || (area || 'Geral').toUpperCase();
+    }
+
+    function formatarData(dataStr) {
+        if (!dataStr) return '—';
+        const d = new Date(dataStr.replace(' ', 'T'));
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    }
+
+    function formatarMes(mesStr) {
+        if (!mesStr) return '—';
+        const [ano, mes] = mesStr.split('-');
+        const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        return `${nomes[parseInt(mes)-1]}/${ano}`;
+    }
+
+    async function carregar() {
+        try {
+            const res = await fetch(`${API}/relatorios-dados`);
+            const d = await res.json();
+
+            // Resumo
+            const enviados = (d.por_status.find(s => s.status === 'enviado') || {}).total || 0;
+            const pendentes = (d.por_status.find(s => s.status === 'pendente') || {}).total || 0;
+            const mesAtual = new Date().toISOString().slice(0, 7);
+            const mesObj = d.por_mes.find(m => m.mes === mesAtual);
+            const totalMes = mesObj ? mesObj.total : 0;
+
+            document.getElementById('total-geral').textContent = d.total;
+            document.getElementById('total-enviados').textContent = enviados;
+            document.getElementById('total-pendentes').textContent = pendentes;
+            document.getElementById('total-mes').textContent = totalMes;
+
+            // Por área
+            const maxArea = d.por_area[0]?.total || 1;
+            document.getElementById('por-area').innerHTML = d.por_area.length === 0
+                ? '<div class="sem-dados">Nenhum dado ainda</div>'
+                : d.por_area.map(a => `
+                    <div class="barra-row">
+                        <div class="barra-label">
+                            <span>${nomeArea(a.area)}</span>
+                            <strong>${a.total}</strong>
+                        </div>
+                        <div class="barra-bg">
+                            <div class="barra-fill ${a.area}" style="width: ${Math.round(a.total/maxArea*100)}%"></div>
+                        </div>
+                    </div>
+                `).join('');
+
+            // Por mês
+            const maxMes = Math.max(...d.por_mes.map(m => m.total), 1);
+            document.getElementById('por-mes').innerHTML = d.por_mes.length === 0
+                ? '<div class="sem-dados">Nenhum dado ainda</div>'
+                : d.por_mes.map(m => `
+                    <div class="barra-row">
+                        <div class="barra-label">
+                            <span>${formatarMes(m.mes)}</span>
+                            <strong>${m.total}</strong>
+                        </div>
+                        <div class="barra-bg">
+                            <div class="barra-fill" style="width: ${Math.round(m.total/maxMes*100)}%; background:#28a745"></div>
+                        </div>
+                    </div>
+                `).join('');
+
+            // Tabela últimas
+            const tbody = document.getElementById('tabela-ultimas');
+            if (d.ultimas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">Nenhum contato ainda</td></tr>';
+            } else {
+                tbody.innerHTML = d.ultimas.map(u => `
+                    <tr>
+                        <td><strong>${u.nome || 'Desconhecido'}</strong></td>
+                        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(u.mensagem||'').replace(/"/g,'&quot;')}">${u.mensagem || '—'}</td>
+                        <td>${nomeArea(u.area)}</td>
+                        <td><span class="badge ${u.urgencia}">${(u.urgencia||'').toUpperCase()}</span></td>
+                        <td><span class="badge ${u.status}">${u.status === 'enviado' ? 'Enviado' : 'Pendente'}</span></td>
+                        <td>${formatarData(u.data)}</td>
+                    </tr>
+                `).join('');
+            }
+        } catch (e) {
+            console.error('Erro ao carregar relatórios:', e);
+        }
+    }
+
+    carregar();
+</script>
+</body>
+</html>
