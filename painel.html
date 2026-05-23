@@ -303,8 +303,20 @@
     // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────
     verificarLogin();
     if (localStorage.getItem('painel_logado') === '1') carregar();
+
+    function temDigitacaoAtiva() {
+        // Não atualiza se o usuário estiver digitando em qualquer campo de feedback
+        const campos = document.querySelectorAll('textarea');
+        for (const campo of campos) {
+            if (document.activeElement === campo || campo.value.trim() !== '') return true;
+        }
+        return false;
+    }
+
     setInterval(() => {
-        if (localStorage.getItem('painel_logado') === '1') carregar();
+        if (localStorage.getItem('painel_logado') === '1' && !temDigitacaoAtiva()) {
+            carregar();
+        }
     }, 30000);
 </script>
 </body>
