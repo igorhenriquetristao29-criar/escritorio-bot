@@ -9,8 +9,10 @@
         body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
         h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; font-size: 24px; }
         .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .card.fora-area { border-left: 4px solid #007bff; }
+        .card.nossa-area { border-left: 4px solid #28a745; }
         .cliente-info { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-        .foto { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: #ddd; }
+        .foto { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
         .foto-placeholder { width: 48px; height: 48px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
         .cliente-nome { font-size: 18px; font-weight: bold; color: #333; }
         .cliente-tel { font-size: 13px; color: #888; }
@@ -23,10 +25,14 @@
         .bpc_loas { background: #cce5ff; color: #004085; }
         .inventario { background: #e2d9f3; color: #4a235a; }
         .licitacoes { background: #ffeeba; color: #856404; }
+        .fora_da_area { background: #cce5ff; color: #004085; }
         .geral { background: #e2e3e5; color: #383d41; }
+        .cliente_fora_area { background: #007bff; color: white; }
+        .cliente_nossa_area { background: #28a745; color: white; }
         .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; }
+        .aviso-fora-area { background: #e8f4fd; border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #004085; font-size: 13px; }
         textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; min-height: 100px; resize: vertical; margin-bottom: 12px; }
-        .botoes { display: flex; gap: 10px; }
+        .botoes { display: flex; gap: 10px; flex-wrap: wrap; }
         button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
         .btn-aprovar { background: #28a745; color: white; }
         .btn-aprovar:hover { background: #218838; }
@@ -58,12 +64,21 @@
 
             container.innerHTML = dados.map(m => {
                 const inicial = (m.nome || '?')[0].toUpperCase();
-                const fotoHtml = m.foto 
+                const fotoHtml = m.foto
                     ? `<img class="foto" src="${m.foto}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="foto-placeholder" style="display:none">${inicial}</div>`
                     : `<div class="foto-placeholder">${inicial}</div>`;
 
+                const categoria = m.analise.categoria || 'cliente_nossa_area';
+                const foraArea = categoria === 'cliente_fora_area';
+                const cardClass = foraArea ? 'fora-area' : 'nossa-area';
+
+                const avisoForaArea = foraArea ? `
+                    <div class="aviso-fora-area">
+                        🔵 <strong>Fora da nossa área</strong> — Considere indicar um colega advogado especialista.
+                    </div>` : '';
+
                 return `
-                <div class="card ${m.status === 'enviado' ? 'enviado' : ''}" id="card-${m.telefone}">
+                <div class="card ${cardClass} ${m.status === 'enviado' ? 'enviado' : ''}" id="card-${m.telefone}">
                     <div class="cliente-info">
                         ${fotoHtml}
                         <div>
@@ -73,10 +88,12 @@
                     </div>
                     <div class="mensagem-original">"${m.mensagem_original}"</div>
                     <div class="badges">
+                        <span class="badge ${categoria}">${foraArea ? '🔵 FORA DA ÁREA' : '🟢 NOSSA ÁREA'}</span>
                         <span class="badge ${m.analise.urgencia}">⚡ ${m.analise.urgencia.toUpperCase()}</span>
                         <span class="badge ${m.analise.area}">📁 ${m.analise.area.replace('_', ' ').toUpperCase()}</span>
                         ${m.status === 'enviado' ? '<span class="badge tag-enviado">✅ ENVIADO</span>' : ''}
                     </div>
+                    ${avisoForaArea}
                     <div class="resposta-label">💬 Resposta sugerida pelo Claude:</div>
                     <textarea id="texto-${m.telefone}">${m.analise.resposta}</textarea>
                     <div class="botoes">
