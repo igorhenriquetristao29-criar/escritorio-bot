@@ -124,8 +124,8 @@ def carregar_pendentes_do_db():
     except Exception as e:
         print(f"Erro ao carregar banco: {e}")
 
-def buscar_historico_conversa(telefone, limite=5):
-    """Retorna as últimas mensagens enviadas para esse cliente (para dar contexto ao Claude)."""
+def buscar_historico_conversa(telefone):
+    """Retorna todo o histórico de conversa com esse cliente em ordem cronológica."""
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -133,11 +133,11 @@ def buscar_historico_conversa(telefone, limite=5):
             SELECT mensagem_original, resposta_enviada
             FROM mensagens
             WHERE telefone = ? AND status = 'enviado' AND resposta_enviada IS NOT NULL
-            ORDER BY criado_em DESC LIMIT ?
-        ''', (telefone, limite))
+            ORDER BY criado_em ASC
+        ''', (telefone,))
         rows = c.fetchall()
         conn.close()
-        return list(reversed(rows))  # ordem cronológica
+        return rows
     except Exception as e:
         print(f"Erro ao buscar histórico: {e}")
         return []
