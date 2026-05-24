@@ -208,8 +208,9 @@
                     Fora da nossa área — Considere indicar um colega advogado especialista.
                 </div>` : '';
 
+            const mid = m.id || m.telefone;
             return `
-            <div class="card ${cardClass} ${m.status === 'enviado' ? 'enviado' : ''}" id="card-${m.telefone}">
+            <div class="card ${cardClass}" id="card-${mid}">
                 <div class="cliente-info">
                     ${fotoHtml}
                     <div>
@@ -222,25 +223,24 @@
                     <span class="badge ${categoria}">${foraArea ? 'FORA DA ÁREA' : 'NOSSA ÁREA'}</span>
                     <span class="badge ${m.analise.urgencia}">${(m.analise.urgencia || '').toUpperCase()}</span>
                     <span class="badge ${m.analise.area}">${(m.analise.area || '').replace(/_/g, ' ').toUpperCase()}</span>
-                    ${m.status === 'enviado' ? '<span class="badge tag-enviado">ENVIADO</span>' : ''}
                 </div>
                 ${avisoForaArea}
                 <div class="resposta-label">Resposta sugerida:</div>
-                <textarea id="texto-${m.telefone}">${m.analise.resposta || ''}</textarea>
+                <textarea id="texto-${mid}">${m.analise.resposta || ''}</textarea>
                 <div class="botoes">
-                    <button class="btn-aprovar" onclick="aprovar('${m.telefone}')">Aprovar e Enviar</button>
-                    <button class="btn-rejeitar" onclick="mostrarFeedback('${m.telefone}')">Rejeitar</button>
+                    <button class="btn-aprovar" onclick="aprovar('${mid}', '${(m.nome||'cliente').replace(/'/g,'')}')">Aprovar e Enviar</button>
+                    <button class="btn-rejeitar" onclick="mostrarFeedback('${mid}')">Rejeitar</button>
                 </div>
 
-                <div class="feedback-area" id="feedback-${m.telefone}">
+                <div class="feedback-area" id="feedback-${mid}">
                     <div class="feedback-label">O que estava errado? Dê uma sugestão para o Claude gerar novas opções:</div>
-                    <textarea id="feedback-texto-${m.telefone}" placeholder="Ex: Tom muito formal, quero mais direto ao ponto..."></textarea>
-                    <button class="btn-aprovar" onclick="pedirNovasOpcoes('${m.telefone}')" style="background:#6c757d">Gerar novas opções</button>
+                    <textarea id="feedback-texto-${mid}" placeholder="Ex: Tom muito formal, quero mais direto ao ponto..."></textarea>
+                    <button class="btn-aprovar" onclick="pedirNovasOpcoes('${mid}')" style="background:#6c757d">Gerar novas opções</button>
                 </div>
 
-                <div class="opcoes-area" id="opcoes-${m.telefone}">
+                <div class="opcoes-area" id="opcoes-${mid}">
                     <div class="opcoes-label">Escolha uma das opções geradas pelo Claude:</div>
-                    <div id="lista-opcoes-${m.telefone}"></div>
+                    <div id="lista-opcoes-${mid}"></div>
                 </div>
             </div>`;
         }).join('');
@@ -297,18 +297,30 @@
         document.getElementById(`opcoes-${telefone}`).style.display = 'none';
     }
 
-    async function aprovar(telefone) {
-        const mensagem = document.getElementById(`texto-${telefone}`).value;
-        const res = await fetch(`${API}/aprovar/${telefone}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({mensagem})
-        });
-        if (res.ok) {
-            alert('Mensagem enviada com sucesso!');
-            carregar();
-        } else {
-            alert('Erro ao enviar. Tente novamente.');
+    async function aprovar(id, nome) {
+        const mensagem = document.getElementById(`texto-${id}`).value;
+        if (!confirm(`Enviar esta mensagem para ${nome}?\n\n"${mensagem}"`)) return;
+
+        try {
+            const res = await fetch(`${API}/aprovar/${id}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mensagem})
+            });
+            if (res.ok) {
+                const card = document.getElementById(`card-${id}`);
+                if (card) card.remove();
+                const pendentes = document.querySelectorAll('.card').length;
+                document.getElementById('contador').textContent =
+                    pendentes > 0 ? `${pendentes} mensagem(ns) aguardando` : 'Nenhuma pendente';
+                if (pendentes === 0) {
+                    document.getElementById('mensagens').innerHTML = '<div class="vazio">Nenhuma mensagem pendente</div>';
+                }
+            } else {
+                alert('Erro ao enviar. Tente novamente.');
+            }
+        } catch (e) {
+            alert('Erro de conexão. Tente novamente.');
         }
     }
 

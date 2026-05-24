@@ -49,6 +49,7 @@ def init_db():
     conn.close()
 
 def salvar_mensagem_db(dados):
+    """Salva mensagem no banco e retorna o ID gerado."""
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -66,29 +67,25 @@ def salvar_mensagem_db(dados):
             analise.get("categoria", "irrelevante"),
             analise.get("resposta", ""),
         ))
+        rowid = c.lastrowid
         conn.commit()
         conn.close()
+        return rowid
     except Exception as e:
         print(f"Erro ao salvar no banco: {e}")
+        return None
 
-def atualizar_status_db(telefone, status, resposta_enviada=None):
+def atualizar_status_db(msg_id, status, resposta_enviada=None):
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        c.execute('''
-            SELECT id FROM mensagens WHERE telefone = ? AND status = 'pendente'
-            ORDER BY criado_em DESC LIMIT 1
-        ''', (telefone,))
-        row = c.fetchone()
-        if row:
-            msg_id = row[0]
-            if resposta_enviada:
-                c.execute(
-                    'UPDATE mensagens SET status = ?, resposta_enviada = ? WHERE id = ?',
-                    (status, resposta_enviada, msg_id)
-                )
-            else:
-                c.execute('UPDATE mensagens SET status = ? WHERE id = ?', (status, msg_id))
+        if resposta_enviada:
+            c.execute(
+                'UPDATE mensagens SET status = ?, resposta_enviada = ? WHERE id = ?',
+                (status, resposta_enviada, msg_id)
+            )
+        else:
+            c.execute('UPDATE mensagens SET status = ? WHERE id = ?', (status, msg_id))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -100,15 +97,17 @@ def carregar_pendentes_do_db():
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute('''
-            SELECT telefone, nome, foto, mensagem_original, urgencia, area, categoria, resposta_sugerida
+            SELECT id, telefone, nome, foto, mensagem_original, urgencia, area, categoria, resposta_sugerida
             FROM mensagens WHERE status = 'pendente'
             ORDER BY criado_em ASC
         ''')
         rows = c.fetchall()
         conn.close()
         for row in rows:
-            telefone, nome, foto, msg_original, urgencia, area, categoria, resposta = row
-            mensagens_pendentes[telefone] = {
+            db_id, telefone, nome, foto, msg_original, urgencia, area, categoria, resposta = row
+            chave = str(db_id)
+            mensagens_pendentes[chave] = {
+                "id": chave,
                 "telefone": telefone,
                 "nome": nome or "Cliente",
                 "foto": foto or "",
@@ -350,7 +349,7 @@ async def webhook(request: Request):
         print(f"IGNORADO ({categoria}): {nome} - {texto}")
         return {"status": f"ignorado - {categoria}"}
 
-    mensagens_pendentes[telefone] = {
+    msg = {
         "telefone": telefone,
         "nome": nome,
         "foto": data.get("photo", ""),
@@ -359,42 +358,47 @@ async def webhook(request: Request):
         "status": "pendente"
     }
 
-    salvar_mensagem_db(mensagens_pendentes[telefone])
-    notificar_equipe(nome, texto, analise["urgencia"], analise["area"], categoria)
+    db_id = salvar_mensagem_db(msg)
+    if db_id:
+        chave = str(db_id)
+        msg["id"] = chave
+        mensagens_pendentes[chave] = msg
 
+    notificar_equipe(nome, texto, analise["urgencia"], analise["area"], categoria)
     return {"status": "recebido"}
 
 @app.get("/pendentes")
 async def listar_pendentes():
     return [m for m in mensagens_pendentes.values() if m["status"] == "pendente"]
 
-@app.post("/aprovar/{telefone}")
-async def aprovar(telefone: str, request: Request):
+@app.post("/aprovar/{msg_id}")
+async def aprovar(msg_id: str, request: Request):
     data = await request.json()
     mensagem_final = data.get("mensagem", "")
 
-    if telefone not in mensagens_pendentes:
+    if msg_id not in mensagens_pendentes:
         return {"erro": "mensagem não encontrada"}
 
+    telefone = mensagens_pendentes[msg_id]["telefone"]
     enviar_whatsapp(telefone, mensagem_final)
-    mensagens_pendentes[telefone]["status"] = "enviado"
-    atualizar_status_db(telefone, "enviado", mensagem_final)
+    del mensagens_pendentes[msg_id]
+    atualizar_status_db(int(msg_id), "enviado", mensagem_final)
 
     return {"status": "enviado"}
 
-@app.post("/rejeitar/{telefone}")
-async def rejeitar(telefone: str, request: Request):
+@app.post("/rejeitar/{msg_id}")
+async def rejeitar(msg_id: str, request: Request):
     data = await request.json()
     feedback = data.get("feedback", "")
 
-    if telefone not in mensagens_pendentes:
+    if msg_id not in mensagens_pendentes:
         return {"erro": "mensagem não encontrada"}
 
-    mensagem_original = mensagens_pendentes[telefone]["mensagem_original"]
+    mensagem_original = mensagens_pendentes[msg_id]["mensagem_original"]
     nova_analise = analisar_mensagem(mensagem_original, feedback=feedback)
 
-    mensagens_pendentes[telefone]["analise"] = nova_analise
-    mensagens_pendentes[telefone]["status"] = "pendente"
+    mensagens_pendentes[msg_id]["analise"] = nova_analise
+    mensagens_pendentes[msg_id]["status"] = "pendente"
 
     return {"status": "novas_opcoes", "analise": nova_analise}
 
