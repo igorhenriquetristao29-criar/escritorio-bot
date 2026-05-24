@@ -9,101 +9,117 @@
         body { font-family: Arial, sans-serif; background: #f0f2f5; }
 
         /* ── LOGIN ── */
-        #tela-login {
-            position: fixed; inset: 0; background: #1a1a2e;
-            display: flex; align-items: center; justify-content: center; z-index: 9999;
-        }
-        .login-box {
-            background: white; border-radius: 16px; padding: 40px 36px; width: 340px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4); text-align: center;
-        }
+        #tela-login { position: fixed; inset: 0; background: #1a1a2e; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .login-box { background: white; border-radius: 16px; padding: 40px 36px; width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); text-align: center; }
         .login-box h2 { color: #1a1a2e; margin-bottom: 6px; font-size: 22px; }
         .login-box p { color: #888; font-size: 13px; margin-bottom: 24px; }
-        .login-box input {
-            width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px;
-            font-size: 15px; margin-bottom: 14px; outline: none;
-        }
+        .login-box input { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; margin-bottom: 14px; outline: none; }
         .login-box input:focus { border-color: #007bff; }
-        .login-box button {
-            width: 100%; padding: 12px; background: #007bff; color: white;
-            border: none; border-radius: 8px; font-size: 15px; font-weight: bold;
-            cursor: pointer;
-        }
+        .login-box button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
         .login-box button:hover { background: #0056b3; }
         .login-erro { color: #dc3545; font-size: 13px; margin-top: 10px; display: none; }
 
         /* ── CABEÇALHO ── */
-        header {
-            background: #1a1a2e; color: white; padding: 14px 20px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        header h1 { font-size: 20px; }
-        .header-links { display: flex; gap: 12px; align-items: center; }
-        .header-links a {
-            color: #adb5bd; text-decoration: none; font-size: 13px;
-            padding: 6px 12px; border-radius: 6px; border: 1px solid #495057;
-        }
+        header { background: #1a1a2e; color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+        header h1 { font-size: 18px; }
+        .header-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .header-links a { color: #adb5bd; text-decoration: none; font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid #495057; }
         .header-links a:hover { background: #343a40; color: white; }
-        .btn-sair {
-            background: none; border: 1px solid #dc3545; color: #dc3545;
-            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
-        }
+        .btn-sair { background: none; border: 1px solid #dc3545; color: #dc3545; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
         .btn-sair:hover { background: #dc3545; color: white; }
 
         /* ── CONTEÚDO ── */
-        main { padding: 20px; max-width: 800px; margin: 0 auto; }
-        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
-        .btn-atualizar {
-            padding: 10px 20px; background: #007bff; color: white; border: none;
-            border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;
-        }
+        main { padding: 16px; max-width: 820px; margin: 0 auto; }
+
+        /* ── TOOLBAR ── */
+        .toolbar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+        .btn-atualizar { padding: 8px 18px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .btn-atualizar:hover { background: #0056b3; }
-        .contador { color: #666; font-size: 14px; }
+        .contador { color: #666; font-size: 13px; }
+
+        /* ── FILTROS ── */
+        .filtros { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .btn-filtro { padding: 6px 14px; border: 1px solid #dee2e6; border-radius: 20px; background: white; color: #555; font-size: 12px; cursor: pointer; }
+        .btn-filtro:hover { background: #f8f9fa; }
+        .btn-filtro.ativo { background: #1a1a2e; color: white; border-color: #1a1a2e; font-weight: bold; }
 
         /* ── CARDS ── */
-        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         .card.fora-area { border-left: 4px solid #007bff; }
         .card.nossa-area { border-left: 4px solid #28a745; }
         .cliente-info { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-        .foto { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
-        .foto-placeholder { width: 48px; height: 48px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
-        .cliente-nome { font-size: 18px; font-weight: bold; color: #333; }
-        .cliente-tel { font-size: 13px; color: #888; }
-        .mensagem-original { background: #f0f2f5; padding: 10px; border-radius: 8px; margin-bottom: 12px; color: #555; font-style: italic; }
-        .badges { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-        .badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .foto { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+        .foto-placeholder { width: 44px; height: 44px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; flex-shrink: 0; }
+        .cliente-nome { font-size: 16px; font-weight: bold; color: #333; }
+        .cliente-tel { font-size: 12px; color: #888; }
+        .mensagem-original { background: #f0f2f5; padding: 10px; border-radius: 8px; margin-bottom: 12px; color: #555; font-style: italic; font-size: 14px; }
+        .badges { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+        .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
         .alta { background: #ffe0e0; color: #c0392b; }
         .media { background: #fff3cd; color: #856404; }
         .baixa { background: #d4edda; color: #155724; }
         .bpc_loas { background: #cce5ff; color: #004085; }
         .inventario { background: #e2d9f3; color: #4a235a; }
         .licitacoes { background: #ffeeba; color: #856404; }
-        .fora_da_area { background: #cce5ff; color: #004085; }
+        .fora_da_area { background: #e2e3e5; color: #383d41; }
         .geral { background: #e2e3e5; color: #383d41; }
+        .badge-fora-horario { background: #fff3cd; color: #856404; }
         .aviso-fora-area { background: #e8f4fd; border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #004085; font-size: 13px; }
-        .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; }
-        textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; min-height: 100px; resize: vertical; margin-bottom: 12px; }
-        .botoes { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-        button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .aviso-fora-horario { background: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #856404; font-size: 13px; }
+
+        /* ── RESPOSTA ── */
+        .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; font-size: 14px; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; min-height: 90px; resize: vertical; margin-bottom: 10px; font-family: Arial, sans-serif; }
+        textarea:focus { outline: none; border-color: #007bff; }
+
+        /* ── BOTÕES ── */
+        .botoes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        button { padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .btn-aprovar { background: #28a745; color: white; }
         .btn-aprovar:hover { background: #218838; }
         .btn-rejeitar { background: #dc3545; color: white; }
         .btn-rejeitar:hover { background: #c82333; }
-        .btn-opcao { background: #f8f9fa; border: 1px solid #ddd; color: #333; text-align: left; width: 100%; margin-bottom: 8px; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: normal; }
-        .btn-opcao:hover { background: #e9ecef; border-color: #28a745; }
-        .feedback-area { margin-top: 12px; display: none; }
+        .btn-contrato { background: #6f42c1; color: white; }
+        .btn-contrato:hover { background: #5a32a3; }
+
+        /* ── FEEDBACK / OPÇÕES ── */
+        .feedback-area { margin-top: 10px; display: none; }
         .feedback-area textarea { min-height: 60px; margin-bottom: 8px; }
         .feedback-label { font-size: 13px; color: #666; margin-bottom: 6px; }
-        .opcoes-area { margin-top: 12px; display: none; }
-        .opcoes-label { font-weight: bold; color: #333; margin-bottom: 8px; }
-        .enviado { opacity: 0.5; pointer-events: none; }
-        .tag-enviado { background: #28a745; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
-        .vazio { text-align: center; color: #888; padding: 60px; font-size: 18px; }
+        .opcoes-area { margin-top: 10px; display: none; }
+        .opcoes-label { font-weight: bold; color: #333; margin-bottom: 8px; font-size: 14px; }
+        .btn-opcao { background: #f8f9fa; border: 1px solid #ddd; color: #333; text-align: left; width: 100%; margin-bottom: 8px; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: normal; }
+        .btn-opcao:hover { background: #e9ecef; border-color: #28a745; }
+
+        /* ── NOTAS ── */
+        .notas-section { margin-top: 12px; border-top: 1px solid #f0f2f5; padding-top: 12px; }
+        .notas-toggle { background: none; border: none; color: #888; font-size: 12px; cursor: pointer; padding: 0; font-weight: normal; text-decoration: underline; }
+        .notas-toggle:hover { color: #555; }
+        .notas-conteudo { display: none; margin-top: 8px; }
+        .notas-conteudo textarea { min-height: 60px; margin-bottom: 6px; font-size: 13px; }
+        .btn-salvar-nota { background: #6c757d; color: white; font-size: 12px; padding: 6px 14px; }
+        .btn-salvar-nota:hover { background: #545b62; }
+
+        /* ── VAZIO ── */
+        .vazio { text-align: center; color: #888; padding: 60px; font-size: 16px; }
+
+        /* ── MOBILE RESPONSIVO ── */
+        @media (max-width: 600px) {
+            header { padding: 12px 14px; }
+            header h1 { font-size: 15px; }
+            main { padding: 12px; }
+            .card { padding: 14px; }
+            .botoes { flex-direction: column; }
+            .botoes button { width: 100%; padding: 12px; font-size: 14px; }
+            .filtros { gap: 6px; }
+            .btn-filtro { font-size: 11px; padding: 5px 10px; }
+            .cliente-nome { font-size: 15px; }
+        }
     </style>
 </head>
 <body>
 
-<!-- ── TELA DE LOGIN ── -->
+<!-- ── LOGIN ── -->
 <div id="tela-login">
     <div class="login-box">
         <h2>Painel de Atendimento</h2>
@@ -119,6 +135,7 @@
     <h1>Painel de Atendimento</h1>
     <div class="header-links">
         <a href="/relatorios">Relatórios</a>
+        <a href="/configuracoes">Configurações</a>
         <button class="btn-sair" onclick="sair()">Sair</button>
     </div>
 </header>
@@ -126,18 +143,30 @@
 <!-- ── CONTEÚDO ── -->
 <main>
     <div class="toolbar">
-        <button class="btn-atualizar" onclick="carregar()">Atualizar mensagens</button>
+        <button class="btn-atualizar" onclick="carregar()">Atualizar</button>
         <span class="contador" id="contador"></span>
     </div>
+
+    <div class="filtros">
+        <button class="btn-filtro ativo" data-area="todos" onclick="filtrar('todos')">Todos</button>
+        <button class="btn-filtro" data-area="bpc_loas" onclick="filtrar('bpc_loas')">BPC LOAS</button>
+        <button class="btn-filtro" data-area="inventario" onclick="filtrar('inventario')">Inventário</button>
+        <button class="btn-filtro" data-area="licitacoes" onclick="filtrar('licitacoes')">Licitações</button>
+        <button class="btn-filtro" data-area="fora_da_area" onclick="filtrar('fora_da_area')">Fora da Área</button>
+        <button class="btn-filtro" data-area="fora_horario" onclick="filtrar('fora_horario')">Fora do Horário</button>
+    </div>
+
     <div id="mensagens"></div>
 </main>
 
 <script>
     const API = 'https://web-production-444ef9.up.railway.app';
     let operacaoEmAndamento = false;
+    let filtroAtual = 'todos';
+    let dadosTodos = [];
+    let countAnterior = null;
 
     // ── AUTENTICAÇÃO ──────────────────────────────────────────────────────────
-
     function verificarLogin() {
         if (localStorage.getItem('painel_logado') === '1') {
             document.getElementById('tela-login').style.display = 'none';
@@ -148,7 +177,6 @@
         const senha = document.getElementById('campo-senha').value;
         const erroEl = document.getElementById('erro-login');
         erroEl.style.display = 'none';
-
         try {
             const res = await fetch(`${API}/login`, {
                 method: 'POST',
@@ -165,7 +193,7 @@
                 document.getElementById('campo-senha').focus();
             }
         } catch (e) {
-            erroEl.textContent = 'Erro de conexão. Tente novamente.';
+            erroEl.textContent = 'Erro de conexão.';
             erroEl.style.display = 'block';
         }
     }
@@ -175,40 +203,77 @@
         location.reload();
     }
 
-    // ── MENSAGENS ─────────────────────────────────────────────────────────────
+    // ── SOM DE ALERTA ─────────────────────────────────────────────────────────
+    function tocarAlerta() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            [0, 0.15].forEach(delay => {
+                const osc  = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + 0.3);
+                osc.start(ctx.currentTime + delay);
+                osc.stop(ctx.currentTime + delay + 0.3);
+            });
+        } catch (e) {}
+    }
 
-    async function carregar() {
-        const res = await fetch(`${API}/pendentes`);
-        const dados = await res.json();
+    // ── FILTROS ───────────────────────────────────────────────────────────────
+    function filtrar(area) {
+        filtroAtual = area;
+        document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('ativo'));
+        document.querySelector(`.btn-filtro[data-area="${area}"]`).classList.add('ativo');
+        renderizar();
+    }
+
+    // ── RENDERIZAÇÃO ──────────────────────────────────────────────────────────
+    function renderizar() {
+        let dados = dadosTodos;
+        if (filtroAtual === 'fora_horario') {
+            dados = dadosTodos.filter(m => m.fora_horario);
+        } else if (filtroAtual !== 'todos') {
+            dados = dadosTodos.filter(m =>
+                m.analise.area === filtroAtual ||
+                (filtroAtual === 'fora_da_area' && m.analise.categoria === 'cliente_fora_area')
+            );
+        }
+
         const container = document.getElementById('mensagens');
-        const contador = document.getElementById('contador');
-
-        const pendentes = dados.filter(m => m.status !== 'enviado');
-        contador.textContent = pendentes.length > 0
-            ? `${pendentes.length} mensagem(ns) aguardando`
+        const contador  = document.getElementById('contador');
+        contador.textContent = dadosTodos.length > 0
+            ? `${dadosTodos.length} aguardando`
             : 'Nenhuma pendente';
 
         if (dados.length === 0) {
-            container.innerHTML = '<div class="vazio">Nenhuma mensagem pendente</div>';
+            container.innerHTML = '<div class="vazio">Nenhuma mensagem nesta categoria</div>';
             return;
         }
 
         container.innerHTML = dados.map(m => {
+            const mid     = m.id || m.telefone;
             const inicial = (m.nome || '?')[0].toUpperCase();
             const fotoHtml = m.foto
                 ? `<img class="foto" src="${m.foto}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="foto-placeholder" style="display:none">${inicial}</div>`
                 : `<div class="foto-placeholder">${inicial}</div>`;
 
             const categoria = m.analise.categoria || 'cliente_nossa_area';
-            const foraArea = categoria === 'cliente_fora_area';
+            const foraArea  = categoria === 'cliente_fora_area';
             const cardClass = foraArea ? 'fora-area' : 'nossa-area';
 
-            const avisoForaArea = foraArea ? `
-                <div class="aviso-fora-area">
-                    Fora da nossa área — Considere indicar um colega advogado especialista.
-                </div>` : '';
+            const avisoForaArea = foraArea
+                ? '<div class="aviso-fora-area">Fora da nossa área — Considere indicar um colega especialista.</div>'
+                : '';
 
-            const mid = m.id || m.telefone;
+            const avisoForaHorario = m.fora_horario
+                ? '<div class="aviso-fora-horario">Recebida fora do horário — auto-resposta já enviada ao cliente. Aprove uma resposta complementar se desejar.</div>'
+                : '';
+
+            const nomeSeguro = (m.nome || 'cliente').replace(/'/g, '');
+
             return `
             <div class="card ${cardClass}" id="card-${mid}">
                 <div class="cliente-info">
@@ -221,67 +286,88 @@
                 <div class="mensagem-original">"${m.mensagem_original}"</div>
                 <div class="badges">
                     <span class="badge ${categoria}">${foraArea ? 'FORA DA ÁREA' : 'NOSSA ÁREA'}</span>
-                    <span class="badge ${m.analise.urgencia}">${(m.analise.urgencia || '').toUpperCase()}</span>
-                    <span class="badge ${m.analise.area}">${(m.analise.area || '').replace(/_/g, ' ').toUpperCase()}</span>
+                    <span class="badge ${m.analise.urgencia}">${(m.analise.urgencia||'').toUpperCase()}</span>
+                    <span class="badge ${m.analise.area}">${(m.analise.area||'').replace(/_/g,' ').toUpperCase()}</span>
+                    ${m.fora_horario ? '<span class="badge badge-fora-horario">FORA DO HORÁRIO</span>' : ''}
                 </div>
                 ${avisoForaArea}
-                <div class="resposta-label">Resposta sugerida:</div>
+                ${avisoForaHorario}
+                <div class="resposta-label">Resposta sugerida pelo Claude:</div>
                 <textarea id="texto-${mid}">${m.analise.resposta || ''}</textarea>
                 <div class="botoes">
-                    <button class="btn-aprovar" onclick="aprovar('${mid}', '${(m.nome||'cliente').replace(/'/g,'')}')">Aprovar e Enviar</button>
+                    <button class="btn-aprovar" onclick="aprovar('${mid}','${nomeSeguro}')">Aprovar e Enviar</button>
                     <button class="btn-rejeitar" onclick="mostrarFeedback('${mid}')">Rejeitar</button>
+                    <button class="btn-contrato" onclick="registrarContrato('${mid}','${nomeSeguro}')">Fechou Contrato</button>
                 </div>
 
                 <div class="feedback-area" id="feedback-${mid}">
-                    <div class="feedback-label">O que estava errado? Dê uma sugestão para o Claude gerar novas opções:</div>
+                    <div class="feedback-label">O que estava errado? Dê uma sugestão:</div>
                     <textarea id="feedback-texto-${mid}" placeholder="Ex: Tom muito formal, quero mais direto ao ponto..."></textarea>
                     <button class="btn-aprovar" onclick="pedirNovasOpcoes('${mid}')" style="background:#6c757d">Gerar novas opções</button>
                 </div>
 
                 <div class="opcoes-area" id="opcoes-${mid}">
-                    <div class="opcoes-label">Escolha uma das opções geradas pelo Claude:</div>
+                    <div class="opcoes-label">Escolha uma das opções:</div>
                     <div id="lista-opcoes-${mid}"></div>
+                </div>
+
+                <div class="notas-section">
+                    <button class="notas-toggle" onclick="toggleNotas('${mid}','${m.telefone}')">Notas internas</button>
+                    <div class="notas-conteudo" id="notas-${mid}">
+                        <textarea id="notas-texto-${mid}" placeholder="Anotações internas sobre este cliente (não são enviadas ao cliente)..."></textarea>
+                        <button class="btn-salvar-nota" onclick="salvarNota('${mid}','${m.telefone}')">Salvar nota</button>
+                    </div>
                 </div>
             </div>`;
         }).join('');
     }
 
-    function mostrarFeedback(telefone) {
-        document.getElementById(`feedback-${telefone}`).style.display = 'block';
+    // ── CARREGAR DADOS ────────────────────────────────────────────────────────
+    async function carregar() {
+        try {
+            const res   = await fetch(`${API}/pendentes`);
+            const dados = await res.json();
+
+            if (countAnterior !== null && dados.length > countAnterior) {
+                tocarAlerta();
+            }
+            countAnterior = dados.length;
+            dadosTodos = dados;
+            renderizar();
+        } catch (e) {
+            console.error('Erro ao carregar:', e);
+        }
     }
 
-    async function pedirNovasOpcoes(telefone) {
-        const feedback = document.getElementById(`feedback-texto-${telefone}`).value;
+    // ── AÇÕES ─────────────────────────────────────────────────────────────────
+    function mostrarFeedback(id) {
+        document.getElementById(`feedback-${id}`).style.display = 'block';
+    }
+
+    async function pedirNovasOpcoes(id) {
+        const feedback = document.getElementById(`feedback-texto-${id}`).value;
         const btn = event.target;
         btn.textContent = 'Gerando opções...';
         btn.disabled = true;
         operacaoEmAndamento = true;
-
         try {
-            const res = await fetch(`${API}/rejeitar/${telefone}`, {
+            const res  = await fetch(`${API}/rejeitar/${id}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({feedback})
             });
             const data = await res.json();
+            if (data.erro) { alert('Erro: ' + data.erro); return; }
 
-            if (data.erro) {
-                alert('Erro: ' + data.erro);
-                return;
-            }
-
-            const opcoes = data.analise.opcoes || [data.analise.resposta];
-            const listaEl = document.getElementById(`lista-opcoes-${telefone}`);
-            const opcoesEl = document.getElementById(`opcoes-${telefone}`);
-
+            const opcoes  = data.analise.opcoes || [data.analise.resposta];
+            const listaEl = document.getElementById(`lista-opcoes-${id}`);
+            const opcoesEl = document.getElementById(`opcoes-${id}`);
             listaEl.innerHTML = opcoes.map((op, i) => `
-                <button class="btn-opcao" onclick="selecionarOpcao('${telefone}', this)">
+                <button class="btn-opcao" onclick="selecionarOpcao('${id}', this)">
                     <strong>Opção ${i+1}:</strong> ${op}
-                </button>
-            `).join('');
-
+                </button>`).join('');
             opcoesEl.style.display = 'block';
-            document.getElementById(`feedback-${telefone}`).style.display = 'none';
+            document.getElementById(`feedback-${id}`).style.display = 'none';
         } catch (e) {
             alert('Erro de conexão. Tente novamente.');
         } finally {
@@ -291,57 +377,90 @@
         }
     }
 
-    function selecionarOpcao(telefone, btn) {
+    function selecionarOpcao(id, btn) {
         const texto = btn.innerText.replace(/^Opção \d+:\s*/, '');
-        document.getElementById(`texto-${telefone}`).value = texto;
-        document.getElementById(`opcoes-${telefone}`).style.display = 'none';
+        document.getElementById(`texto-${id}`).value = texto;
+        document.getElementById(`opcoes-${id}`).style.display = 'none';
     }
 
     async function aprovar(id, nome) {
         const mensagem = document.getElementById(`texto-${id}`).value;
         if (!confirm(`Enviar esta mensagem para ${nome}?\n\n"${mensagem}"`)) return;
-
         try {
             const res = await fetch(`${API}/aprovar/${id}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({mensagem})
             });
-            if (res.ok) {
-                const card = document.getElementById(`card-${id}`);
-                if (card) card.remove();
-                const pendentes = document.querySelectorAll('.card').length;
-                document.getElementById('contador').textContent =
-                    pendentes > 0 ? `${pendentes} mensagem(ns) aguardando` : 'Nenhuma pendente';
-                if (pendentes === 0) {
-                    document.getElementById('mensagens').innerHTML = '<div class="vazio">Nenhuma mensagem pendente</div>';
-                }
-            } else {
-                alert('Erro ao enviar. Tente novamente.');
-            }
+            const data = await res.json();
+            if (data.erro) { alert(data.erro); return; }
+            dadosTodos = dadosTodos.filter(m => m.id !== id);
+            countAnterior = dadosTodos.length;
+            renderizar();
         } catch (e) {
             alert('Erro de conexão. Tente novamente.');
         }
     }
 
-    // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────
-    verificarLogin();
-    if (localStorage.getItem('painel_logado') === '1') carregar();
+    async function registrarContrato(id, nome) {
+        if (!confirm(`Registrar que ${nome} fechou contrato?`)) return;
+        try {
+            const res  = await fetch(`${API}/contratar/${id}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.erro) { alert(data.erro); return; }
+            dadosTodos = dadosTodos.filter(m => m.id !== id);
+            countAnterior = dadosTodos.length;
+            renderizar();
+            alert(`Contrato de ${nome} registrado!`);
+        } catch (e) {
+            alert('Erro de conexão. Tente novamente.');
+        }
+    }
 
+    // ── NOTAS ─────────────────────────────────────────────────────────────────
+    async function toggleNotas(id, telefone) {
+        const el = document.getElementById(`notas-${id}`);
+        if (el.style.display === 'block') {
+            el.style.display = 'none';
+        } else {
+            el.style.display = 'block';
+            const res  = await fetch(`${API}/nota/${telefone}`);
+            const data = await res.json();
+            document.getElementById(`notas-texto-${id}`).value = data.texto || '';
+        }
+    }
+
+    async function salvarNota(id, telefone) {
+        const texto = document.getElementById(`notas-texto-${id}`).value;
+        operacaoEmAndamento = true;
+        try {
+            await fetch(`${API}/nota/${telefone}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({texto})
+            });
+            alert('Nota salva!');
+        } catch (e) {
+            alert('Erro ao salvar nota.');
+        } finally {
+            operacaoEmAndamento = false;
+        }
+    }
+
+    // ── AUTO-REFRESH ──────────────────────────────────────────────────────────
     function temDigitacaoAtiva() {
-        // Não atualiza se houver operação em andamento ou usuário digitando
         if (operacaoEmAndamento) return true;
-        const campos = document.querySelectorAll('textarea');
-        for (const campo of campos) {
+        for (const campo of document.querySelectorAll('textarea')) {
             if (document.activeElement === campo || campo.value.trim() !== '') return true;
         }
         return false;
     }
 
+    // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────
+    verificarLogin();
+    if (localStorage.getItem('painel_logado') === '1') carregar();
     setInterval(() => {
-        if (localStorage.getItem('painel_logado') === '1' && !temDigitacaoAtiva()) {
-            carregar();
-        }
+        if (localStorage.getItem('painel_logado') === '1' && !temDigitacaoAtiva()) carregar();
     }, 30000);
 </script>
 </body>

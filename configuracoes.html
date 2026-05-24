@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações — Letícia Marques Advocacia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+        header { background: #1a1a2e; color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+        header h1 { font-size: 20px; }
+        .header-links { display: flex; gap: 12px; align-items: center; }
+        .header-links a { color: #adb5bd; text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid #495057; }
+        .header-links a:hover { background: #343a40; color: white; }
+        .btn-sair { background: none; border: 1px solid #dc3545; color: #dc3545; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-sair:hover { background: #dc3545; color: white; }
+
+        main { padding: 24px; max-width: 700px; margin: 0 auto; }
+
+        .secao { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .secao h2 { font-size: 16px; color: #333; margin-bottom: 6px; }
+        .secao p  { font-size: 13px; color: #888; margin-bottom: 16px; }
+
+        label { display: block; font-size: 13px; font-weight: bold; color: #555; margin-bottom: 6px; margin-top: 14px; }
+        label:first-of-type { margin-top: 0; }
+
+        input[type="number"], textarea {
+            width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+            font-size: 14px; font-family: Arial, sans-serif; outline: none;
+        }
+        input[type="number"] { width: 100px; }
+        input:focus, textarea:focus { border-color: #007bff; }
+        textarea { min-height: 100px; resize: vertical; }
+
+        .linha-horas { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+        .campo-hora { display: flex; flex-direction: column; }
+
+        .btn-salvar { margin-top: 18px; padding: 10px 28px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-salvar:hover { background: #218838; }
+
+        .aviso { background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Configurações</h1>
+    <div class="header-links">
+        <a href="/painel">Painel</a>
+        <a href="/relatorios">Relatórios</a>
+        <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+</header>
+
+<main>
+
+    <!-- Horário de Atendimento -->
+    <div class="secao">
+        <h2>Horário de Atendimento</h2>
+        <p>Fora deste horário (e nos fins de semana), o sistema envia a mensagem automática ao cliente e coloca a mensagem na fila do painel.</p>
+
+        <div class="linha-horas">
+            <div class="campo-hora">
+                <label>Início (hora)</label>
+                <input type="number" id="hora-inicio" min="0" max="23" value="8">
+            </div>
+            <div class="campo-hora">
+                <label>Fim (hora)</label>
+                <input type="number" id="hora-fim" min="0" max="23" value="18">
+            </div>
+        </div>
+
+        <p style="margin-top:10px; font-size:12px; color:#aaa">Ex: início 8, fim 18 = atende das 8h às 17h59</p>
+
+        <button class="btn-salvar" onclick="salvarHorario()">Salvar horário</button>
+        <div class="aviso" id="aviso-horario">Horário salvo com sucesso!</div>
+    </div>
+
+    <!-- Mensagem Fora do Horário -->
+    <div class="secao">
+        <h2>Mensagem Automática (fora do horário)</h2>
+        <p>Texto enviado automaticamente ao cliente quando a mensagem chega fora do horário de atendimento.</p>
+
+        <label>Texto da mensagem</label>
+        <textarea id="msg-fora-horario" placeholder="Digite a mensagem automática..."></textarea>
+
+        <button class="btn-salvar" onclick="salvarMensagem()">Salvar mensagem</button>
+        <div class="aviso" id="aviso-mensagem">Mensagem salva com sucesso!</div>
+    </div>
+
+</main>
+
+<script>
+    const API = 'https://web-production-444ef9.up.railway.app';
+
+    if (localStorage.getItem('painel_logado') !== '1') {
+        window.location.href = '/painel';
+    }
+
+    function sair() {
+        localStorage.removeItem('painel_logado');
+        window.location.href = '/painel';
+    }
+
+    async function carregar() {
+        try {
+            const res  = await fetch(`${API}/config`);
+            const data = await res.json();
+            document.getElementById('hora-inicio').value     = data.HORA_INICIO || '8';
+            document.getElementById('hora-fim').value        = data.HORA_FIM    || '18';
+            document.getElementById('msg-fora-horario').value = data.MSG_FORA_HORARIO || '';
+        } catch (e) {
+            console.error('Erro ao carregar configurações:', e);
+        }
+    }
+
+    async function salvarHorario() {
+        const inicio = document.getElementById('hora-inicio').value;
+        const fim    = document.getElementById('hora-fim').value;
+        try {
+            await fetch(`${API}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({HORA_INICIO: inicio, HORA_FIM: fim})
+            });
+            mostrarAviso('aviso-horario');
+        } catch (e) {
+            alert('Erro ao salvar. Tente novamente.');
+        }
+    }
+
+    async function salvarMensagem() {
+        const msg = document.getElementById('msg-fora-horario').value;
+        try {
+            await fetch(`${API}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({MSG_FORA_HORARIO: msg})
+            });
+            mostrarAviso('aviso-mensagem');
+        } catch (e) {
+            alert('Erro ao salvar. Tente novamente.');
+        }
+    }
+
+    function mostrarAviso(id) {
+        const el = document.getElementById(id);
+        el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', 3000);
+    }
+
+    carregar();
+</script>
+</body>
+</html>
