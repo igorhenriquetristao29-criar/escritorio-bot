@@ -124,6 +124,24 @@ def carregar_pendentes_do_db():
     except Exception as e:
         print(f"Erro ao carregar banco: {e}")
 
+def buscar_historico_conversa(telefone, limite=5):
+    """Retorna as últimas mensagens enviadas para esse cliente (para dar contexto ao Claude)."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('''
+            SELECT mensagem_original, resposta_enviada
+            FROM mensagens
+            WHERE telefone = ? AND status = 'enviado' AND resposta_enviada IS NOT NULL
+            ORDER BY criado_em DESC LIMIT ?
+        ''', (telefone, limite))
+        rows = c.fetchall()
+        conn.close()
+        return list(reversed(rows))  # ordem cronológica
+    except Exception as e:
+        print(f"Erro ao buscar histórico: {e}")
+        return []
+
 def buscar_relatorios():
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -229,7 +247,7 @@ https://web-production-444ef9.up.railway.app/painel"""
 
 # ─── CLAUDE ───────────────────────────────────────────────────────────────────
 
-def analisar_mensagem(texto, feedback=None):
+def analisar_mensagem(texto, feedback=None, historico=None):
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
     if feedback:
@@ -239,12 +257,21 @@ def analisar_mensagem(texto, feedback=None):
         instrucao_feedback = ""
         formato_json = '{{"categoria": "...", "urgencia": "alta/media/baixa", "area": "bpc_loas/inventario/licitacoes/geral/fora_da_area", "perfil": "simples/formal", "resposta": "sua resposta ao cliente aqui"}}'
 
+    if historico:
+        linhas = []
+        for msg_cliente, resp_escritorio in historico:
+            linhas.append(f'  Cliente: "{msg_cliente}"')
+            linhas.append(f'  Escritório: "{resp_escritorio}"')
+        contexto_historico = "HISTÓRICO DESTA CONVERSA (mensagens anteriores com este cliente):\n" + "\n".join(linhas) + "\n\nConsidere o histórico acima para dar continuidade natural à conversa.\n"
+    else:
+        contexto_historico = ""
+
     resposta = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=2048,
         messages=[{
             "role": "user",
-            "content": f"""Você é um captador de clientes de um escritório jurídico especializado em:
+            "content": f"""{contexto_historico}Você é um captador de clientes de um escritório jurídico especializado em:
 - BPC LOAS (Benefício de Prestação Continuada para idosos e pessoas com deficiência)
 - Inventário e sucessões (partilha de bens após falecimento)
 - Licitações e contratos administrativos (empresas participando de licitações públicas)
@@ -342,7 +369,8 @@ async def webhook(request: Request):
         enviar_whatsapp(telefone, MSG_FORA_HORARIO)
         return {"status": "fora do horario - resposta automatica enviada"}
 
-    analise = analisar_mensagem(texto)
+    historico = buscar_historico_conversa(telefone)
+    analise = analisar_mensagem(texto, historico=historico)
     categoria = analise.get("categoria", "irrelevante")
 
     if categoria in ["conversa_pessoal", "irrelevante"]:
