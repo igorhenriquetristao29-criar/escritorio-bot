@@ -20,7 +20,10 @@ LETICIA = "5564981177107"
 # ─── BANCO DE DADOS (PostgreSQL) ──────────────────────────────────────────────
 
 def get_conn():
-    return psycopg2.connect(os.environ["DATABASE_URL"])
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        raise Exception("DATABASE_URL não configurada. Adicione o PostgreSQL no Railway.")
+    return psycopg2.connect(db_url)
 
 def init_db():
     conn = get_conn()
@@ -198,8 +201,11 @@ def set_config(chave, valor):
         print(f"Erro ao salvar config: {e}")
 
 # Inicializa banco ao subir
-init_db()
-carregar_pendentes_do_db()
+try:
+    init_db()
+    carregar_pendentes_do_db()
+except Exception as e:
+    print(f"AVISO: Banco não inicializado — {e}")
 
 # ─── HORÁRIO DE ATENDIMENTO ────────────────────────────────────────────────────
 
