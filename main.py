@@ -508,6 +508,20 @@ async def relatorios_page():
 async def configuracoes_page():
     return FileResponse("configuracoes.html")
 
+@app.get("/db-status")
+async def db_status():
+    try:
+        db_url = os.environ.get("DATABASE_URL", "NAO_DEFINIDA")
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM mensagens")
+        count = c.fetchone()[0]
+        c.close()
+        conn.close()
+        return {"status": "conectado", "mensagens": count, "url_prefixo": db_url[:30]}
+    except Exception as e:
+        return {"status": "erro", "erro": str(e), "DATABASE_URL": os.environ.get("DATABASE_URL", "NAO_DEFINIDA")[:30]}
+
 @app.get("/")
 async def root():
     return {"status": "servidor rodando"}
