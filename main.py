@@ -1,14 +1,11 @@
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import anthropic
 import requests
-import os
-import json
-import re
+import os, json, re, datetime, csv, io
 import psycopg2
 import psycopg2.extras
-import datetime
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -16,8 +13,9 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 mensagens_pendentes = {}
 IGOR    = "5564981475621"
 LETICIA = "5564981177107"
+API_BASE = "https://web-production-3c5ee.up.railway.app"
 
-# ─── BANCO DE DADOS (PostgreSQL) ──────────────────────────────────────────────
+# ─── BANCO DE DADOS ────────────────────────────────────────────────────────────
 
 def get_conn():
     db_url = os.environ.get("DATABASE_URL")
@@ -28,67 +26,110 @@ def get_conn():
 def init_db():
     conn = get_conn()
     c = conn.cursor()
+
     c.execute('''CREATE TABLE IF NOT EXISTS mensagens (
-        id               SERIAL PRIMARY KEY,
-        telefone         TEXT NOT NULL,
-        nome             TEXT,
-        foto             TEXT,
+        id                SERIAL PRIMARY KEY,
+        telefone          TEXT NOT NULL,
+        nome              TEXT,
+        foto              TEXT,
         mensagem_original TEXT,
-        urgencia         TEXT,
-        area             TEXT,
-        categoria        TEXT,
+        urgencia          TEXT,
+        area              TEXT,
+        categoria         TEXT,
         resposta_sugerida TEXT,
         resposta_enviada  TEXT,
-        status           TEXT DEFAULT 'pendente',
-        fora_horario     BOOLEAN DEFAULT FALSE,
-        criado_em        TIMESTAMP DEFAULT NOW()
+        status            TEXT DEFAULT 'pendente',
+        fora_horario      BOOLEAN DEFAULT FALSE,
+        funil_status      TEXT DEFAULT 'novo',
+        retorno_cliente   BOOLEAN DEFAULT FALSE,
+        aprovado_por      TEXT,
+        criado_em         TIMESTAMP DEFAULT NOW()
     )''')
+
+    # Colunas novas em tabelas existentes (seguro rodar várias vezes)
+    for col_sql in [
+        "ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS funil_status TEXT DEFAULT 'novo'",
+        "ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS retorno_cliente BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS aprovado_por TEXT",
+    ]:
+        c.execute(col_sql)
+
     c.execute('''CREATE TABLE IF NOT EXISTS notas (
-        id           SERIAL PRIMARY KEY,
-        telefone     TEXT NOT NULL UNIQUE,
-        texto        TEXT DEFAULT '',
+        id            SERIAL PRIMARY KEY,
+        telefone      TEXT NOT NULL UNIQUE,
+        texto         TEXT DEFAULT '',
         atualizado_em TIMESTAMP DEFAULT NOW()
     )''')
+
     c.execute('''CREATE TABLE IF NOT EXISTS configuracoes (
         chave TEXT PRIMARY KEY,
         valor TEXT
     )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS modelos (
+        id        SERIAL PRIMARY KEY,
+        titulo    TEXT NOT NULL,
+        texto     TEXT NOT NULL,
+        criado_em TIMESTAMP DEFAULT NOW()
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS lembretes (
+        id            SERIAL PRIMARY KEY,
+        msg_id        INTEGER,
+        telefone      TEXT NOT NULL,
+        nome          TEXT,
+        texto         TEXT,
+        data_lembrete DATE NOT NULL,
+        ativo         BOOLEAN DEFAULT TRUE,
+        criado_em     TIMESTAMP DEFAULT NOW()
+    )''')
+
     conn.commit()
     c.close()
     conn.close()
-    print(f"Banco PostgreSQL iniciado. DB_PATH: {os.environ.get('DATABASE_URL','?')[:30]}...")
+    print("Banco PostgreSQL iniciado com sucesso.")
 
 def salvar_mensagem_db(dados, fora_horario=False):
     try:
         conn = get_conn()
         c = conn.cursor()
-        analise = dados.get("analise", {})
+        analise  = dados.get("analise", {})
+        telefone = dados["telefone"]
+
+        # Verifica se é cliente recorrente
+        c.execute('SELECT COUNT(*) FROM mensagens WHERE telefone=%s', (telefone,))
+        retorno = c.fetchone()[0] > 0
+
         c.execute('''
             INSERT INTO mensagens
-              (telefone, nome, foto, mensagem_original, urgencia, area, categoria, resposta_sugerida, status, fora_horario)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendente', %s)
+              (telefone, nome, foto, mensagem_original, urgencia, area, categoria,
+               resposta_sugerida, status, fora_horario, retorno_cliente)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pendente',%s,%s)
             RETURNING id
         ''', (
-            dados["telefone"], dados["nome"], dados.get("foto", ""),
+            telefone, dados["nome"], dados.get("foto",""),
             dados["mensagem_original"],
-            analise.get("urgencia", "baixa"), analise.get("area", "geral"),
-            analise.get("categoria", "irrelevante"), analise.get("resposta", ""),
-            fora_horario,
+            analise.get("urgencia","baixa"), analise.get("area","geral"),
+            analise.get("categoria","irrelevante"), analise.get("resposta",""),
+            fora_horario, retorno,
         ))
         rowid = c.fetchone()[0]
         conn.commit()
         c.close()
         conn.close()
-        return rowid
+        return rowid, retorno
     except Exception as e:
         print(f"Erro ao salvar no banco: {e}")
-        return None
+        return None, False
 
-def atualizar_status_db(msg_id, status, resposta_enviada=None):
+def atualizar_status_db(msg_id, status, resposta_enviada=None, aprovado_por=None):
     try:
         conn = get_conn()
         c = conn.cursor()
-        if resposta_enviada:
+        if resposta_enviada and aprovado_por:
+            c.execute('UPDATE mensagens SET status=%s, resposta_enviada=%s, aprovado_por=%s WHERE id=%s',
+                      (status, resposta_enviada, aprovado_por, msg_id))
+        elif resposta_enviada:
             c.execute('UPDATE mensagens SET status=%s, resposta_enviada=%s WHERE id=%s',
                       (status, resposta_enviada, msg_id))
         else:
@@ -104,14 +145,16 @@ def carregar_pendentes_do_db():
         conn = get_conn()
         c = conn.cursor()
         c.execute('''
-            SELECT id, telefone, nome, foto, mensagem_original, urgencia, area, categoria, resposta_sugerida, fora_horario
-            FROM mensagens WHERE status = 'pendente' ORDER BY criado_em ASC
+            SELECT id, telefone, nome, foto, mensagem_original, urgencia, area, categoria,
+                   resposta_sugerida, fora_horario, funil_status, retorno_cliente
+            FROM mensagens WHERE status='pendente' ORDER BY criado_em ASC
         ''')
         rows = c.fetchall()
         c.close()
         conn.close()
         for row in rows:
-            db_id, telefone, nome, foto, msg_original, urgencia, area, categoria, resposta, fora_h = row
+            db_id, telefone, nome, foto, msg_original, urgencia, area, categoria, \
+                resposta, fora_h, funil, retorno = row
             chave = str(db_id)
             mensagens_pendentes[chave] = {
                 "id": chave, "telefone": telefone,
@@ -119,18 +162,21 @@ def carregar_pendentes_do_db():
                 "mensagem_original": msg_original or "",
                 "analise": {
                     "categoria": categoria or "cliente_nossa_area",
-                    "urgencia": urgencia or "baixa",
-                    "area": area or "geral",
-                    "resposta": resposta or ""
+                    "urgencia":  urgencia  or "baixa",
+                    "area":      area      or "geral",
+                    "resposta":  resposta  or ""
                 },
-                "fora_horario": bool(fora_h),
+                "fora_horario":   bool(fora_h),
+                "funil_status":   funil or "novo",
+                "retorno_cliente": bool(retorno),
                 "status": "pendente"
             }
-        print(f"Banco carregado: {len(rows)} mensagens pendentes restauradas.")
+        print(f"Banco carregado: {len(rows)} pendentes restauradas.")
     except Exception as e:
         print(f"Erro ao carregar banco: {e}")
 
 def buscar_historico_conversa(telefone):
+    """Histórico resumido para contexto do Claude."""
     try:
         conn = get_conn()
         c = conn.cursor()
@@ -147,6 +193,26 @@ def buscar_historico_conversa(telefone):
         print(f"Erro ao buscar histórico: {e}")
         return []
 
+def buscar_historico_completo(telefone):
+    """Histórico completo para modal do painel."""
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''
+            SELECT mensagem_original, resposta_enviada, status, area, urgencia,
+                   TO_CHAR(criado_em - INTERVAL '3 hours','DD/MM/YYYY HH24:MI'), aprovado_por
+            FROM mensagens WHERE telefone=%s ORDER BY criado_em ASC
+        ''', (telefone,))
+        rows = c.fetchall()
+        c.close()
+        conn.close()
+        return [{"mensagem": r[0], "resposta": r[1], "status": r[2],
+                 "area": r[3], "urgencia": r[4], "data": r[5], "aprovado_por": r[6]}
+                for r in rows]
+    except Exception as e:
+        print(f"Erro ao buscar histórico completo: {e}")
+        return []
+
 def buscar_relatorios():
     try:
         conn = get_conn()
@@ -155,13 +221,13 @@ def buscar_relatorios():
         total = c.fetchone()[0]
         c.execute('SELECT area, COUNT(*) FROM mensagens GROUP BY area ORDER BY 2 DESC')
         por_area = [{"area": r[0], "total": r[1]} for r in c.fetchall()]
-        c.execute('''SELECT TO_CHAR(criado_em - INTERVAL '3 hours', 'YYYY-MM') as mes, COUNT(*)
+        c.execute('''SELECT TO_CHAR(criado_em - INTERVAL '3 hours','YYYY-MM') as mes, COUNT(*)
                      FROM mensagens GROUP BY mes ORDER BY mes DESC LIMIT 12''')
         por_mes = [{"mes": r[0], "total": r[1]} for r in c.fetchall()]
         c.execute('SELECT status, COUNT(*) FROM mensagens GROUP BY status')
         por_status = [{"status": r[0], "total": r[1]} for r in c.fetchall()]
         c.execute('''SELECT telefone, nome, mensagem_original, area, urgencia, status,
-                            TO_CHAR(criado_em - INTERVAL '3 hours', 'YYYY-MM-DD HH24:MI'), fora_horario
+                            TO_CHAR(criado_em - INTERVAL '3 hours','YYYY-MM-DD HH24:MI'), fora_horario
                      FROM mensagens ORDER BY id DESC LIMIT 50''')
         ultimas = [{"telefone": r[0], "nome": r[1], "mensagem": r[2], "area": r[3],
                     "urgencia": r[4], "status": r[5], "data": r[6], "fora_horario": bool(r[7])}
@@ -192,7 +258,7 @@ def set_config(chave, valor):
     try:
         conn = get_conn()
         c = conn.cursor()
-        c.execute('''INSERT INTO configuracoes (chave, valor) VALUES (%s, %s)
+        c.execute('''INSERT INTO configuracoes (chave, valor) VALUES (%s,%s)
                      ON CONFLICT (chave) DO UPDATE SET valor=EXCLUDED.valor''', (chave, valor))
         conn.commit()
         c.close()
@@ -213,7 +279,7 @@ def dentro_do_horario():
     if os.environ.get("MODO_TESTE") == "1":
         return True
     brasilia = datetime.timezone(datetime.timedelta(hours=-3))
-    agora = datetime.datetime.now(brasilia)
+    agora    = datetime.datetime.now(brasilia)
     if agora.weekday() >= 5:
         return False
     hora_inicio = int(get_config("HORA_INICIO", os.environ.get("HORA_INICIO", "8")))
@@ -235,11 +301,11 @@ def notificar_equipe(nome, mensagem, urgencia, area, categoria, fora_horario=Fal
     url     = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
     headers = {"Client-Token": client_token}
 
-    if fora_horario:        tag = "FORA DO HORARIO"
-    elif categoria == "cliente_fora_area": tag = "FORA DA AREA"
-    elif urgencia == "alta":               tag = "URGENTE"
-    elif urgencia == "media":              tag = "NORMAL"
-    else:                                  tag = "BAIXA PRIORIDADE"
+    if fora_horario:                        tag = "FORA DO HORARIO"
+    elif categoria == "cliente_fora_area":  tag = "FORA DA AREA"
+    elif urgencia == "alta":                tag = "URGENTE"
+    elif urgencia == "media":               tag = "NORMAL"
+    else:                                   tag = "BAIXA PRIORIDADE"
 
     aviso = "\n(Auto-resposta enviada — aguarda aprovacao no painel)" if fora_horario else ""
     texto = f"""{tag} - Nova mensagem!
@@ -249,10 +315,13 @@ Mensagem: "{mensagem}"
 Area: {area.upper()}{aviso}
 
 Painel:
-https://web-production-444ef9.up.railway.app/painel"""
+{API_BASE}/painel"""
 
     for numero in [IGOR, LETICIA]:
-        requests.post(url, json={"phone": numero, "message": texto}, headers=headers)
+        try:
+            requests.post(url, json={"phone": numero, "message": texto}, headers=headers, timeout=10)
+        except Exception as e:
+            print(f"Erro ao notificar {numero}: {e}")
 
 # ─── CLAUDE ───────────────────────────────────────────────────────────────────
 
@@ -350,10 +419,12 @@ def processar_mensagem_fora_horario(telefone, texto, nome, foto):
             "mensagem_original": texto, "analise": analise,
             "fora_horario": True, "status": "pendente"
         }
-        db_id = salvar_mensagem_db(msg, fora_horario=True)
+        db_id, retorno = salvar_mensagem_db(msg, fora_horario=True)
         if db_id:
             chave = str(db_id)
-            msg["id"] = chave
+            msg["id"]             = chave
+            msg["retorno_cliente"] = retorno
+            msg["funil_status"]   = "novo"
             mensagens_pendentes[chave] = msg
         notificar_equipe(nome, texto, analise["urgencia"], analise["area"], categoria, fora_horario=True)
     except Exception as e:
@@ -363,9 +434,14 @@ def processar_mensagem_fora_horario(telefone, texto, nome, foto):
 
 @app.post("/login")
 async def login(request: Request):
-    data = await request.json()
-    if data.get("senha", "") == os.environ.get("PAINEL_SENHA", "Afra1988"):
-        return {"ok": True}
+    data  = await request.json()
+    senha = data.get("senha", "")
+    senha_igor    = os.environ.get("SENHA_IGOR",    os.environ.get("PAINEL_SENHA", "Afra1988"))
+    senha_leticia = os.environ.get("SENHA_LETICIA", os.environ.get("PAINEL_SENHA", "Afra1988"))
+    if senha == senha_igor:
+        return {"ok": True, "usuario": "Igor"}
+    if senha == senha_leticia:
+        return {"ok": True, "usuario": "Letícia"}
     raise HTTPException(status_code=401, detail="Senha incorreta")
 
 @app.post("/webhook")
@@ -383,8 +459,8 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     nome     = data.get("senderName", "Cliente")
     foto     = data.get("photo", "")
 
-    if not texto:            return {"status": "sem texto"}
-    if telefone in [IGOR, LETICIA]: return {"status": "ignorado - equipe"}
+    if not texto:                           return {"status": "sem texto"}
+    if telefone in [IGOR, LETICIA]:        return {"status": "ignorado - equipe"}
 
     if not dentro_do_horario():
         enviar_whatsapp(telefone, get_msg_fora_horario())
@@ -403,10 +479,12 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         "mensagem_original": texto, "analise": analise,
         "fora_horario": False, "status": "pendente"
     }
-    db_id = salvar_mensagem_db(msg)
+    db_id, retorno = salvar_mensagem_db(msg)
     if db_id:
         chave = str(db_id)
-        msg["id"] = chave
+        msg["id"]              = chave
+        msg["retorno_cliente"] = retorno
+        msg["funil_status"]    = "novo"
         mensagens_pendentes[chave] = msg
 
     notificar_equipe(nome, texto, analise["urgencia"], analise["area"], categoria)
@@ -421,11 +499,12 @@ async def aprovar(msg_id: str, request: Request):
     data = await request.json()
     if msg_id not in mensagens_pendentes:
         return {"erro": "Mensagem não encontrada — pode já ter sido aprovada por outro usuário."}
-    telefone = mensagens_pendentes[msg_id]["telefone"]
+    telefone       = mensagens_pendentes[msg_id]["telefone"]
     mensagem_final = data.get("mensagem", "")
+    usuario        = data.get("usuario", "")
     enviar_whatsapp(telefone, mensagem_final)
     del mensagens_pendentes[msg_id]
-    atualizar_status_db(int(msg_id), "enviado", mensagem_final)
+    atualizar_status_db(int(msg_id), "enviado", mensagem_final, usuario)
     return {"status": "enviado"}
 
 @app.post("/rejeitar/{msg_id}")
@@ -439,12 +518,35 @@ async def rejeitar(msg_id: str, request: Request):
     return {"status": "novas_opcoes", "analise": nova_analise}
 
 @app.post("/contratar/{msg_id}")
-async def contratar(msg_id: str):
+async def contratar(msg_id: str, request: Request):
     if msg_id not in mensagens_pendentes:
         return {"erro": "mensagem não encontrada"}
-    atualizar_status_db(int(msg_id), "contrato")
+    data    = await request.json()
+    usuario = data.get("usuario", "")
+    atualizar_status_db(int(msg_id), "contrato", aprovado_por=usuario)
     del mensagens_pendentes[msg_id]
     return {"status": "contrato registrado"}
+
+@app.post("/funil/{msg_id}")
+async def atualizar_funil(msg_id: str, request: Request):
+    data  = await request.json()
+    funil = data.get("funil_status", "novo")
+    if msg_id in mensagens_pendentes:
+        mensagens_pendentes[msg_id]["funil_status"] = funil
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('UPDATE mensagens SET funil_status=%s WHERE id=%s', (funil, int(msg_id)))
+        conn.commit()
+        c.close()
+        conn.close()
+    except Exception as e:
+        print(f"Erro ao atualizar funil: {e}")
+    return {"ok": True}
+
+@app.get("/historico/{telefone}")
+async def historico_cliente(telefone: str):
+    return buscar_historico_completo(telefone)
 
 @app.get("/nota/{telefone}")
 async def get_nota(telefone: str):
@@ -461,12 +563,12 @@ async def get_nota(telefone: str):
 
 @app.post("/nota/{telefone}")
 async def salvar_nota(telefone: str, request: Request):
-    data = await request.json()
+    data  = await request.json()
     texto = data.get("texto", "")
     try:
         conn = get_conn()
         c = conn.cursor()
-        c.execute('''INSERT INTO notas (telefone, texto) VALUES (%s, %s)
+        c.execute('''INSERT INTO notas (telefone, texto) VALUES (%s,%s)
                      ON CONFLICT (telefone) DO UPDATE SET texto=EXCLUDED.texto, atualizado_em=NOW()''',
                   (telefone, texto))
         conn.commit()
@@ -476,12 +578,194 @@ async def salvar_nota(telefone: str, request: Request):
     except Exception as e:
         return {"erro": str(e)}
 
+# ─── MODELOS DE RESPOSTA ───────────────────────────────────────────────────────
+
+@app.get("/modelos")
+async def listar_modelos():
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('SELECT id, titulo, texto FROM modelos ORDER BY id ASC')
+        rows = c.fetchall()
+        c.close()
+        conn.close()
+        return [{"id": r[0], "titulo": r[1], "texto": r[2]} for r in rows]
+    except:
+        return []
+
+@app.post("/modelos")
+async def criar_modelo(request: Request):
+    data = await request.json()
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('INSERT INTO modelos (titulo, texto) VALUES (%s,%s) RETURNING id',
+                  (data.get("titulo",""), data.get("texto","")))
+        new_id = c.fetchone()[0]
+        conn.commit()
+        c.close()
+        conn.close()
+        return {"ok": True, "id": new_id}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.delete("/modelos/{modelo_id}")
+async def deletar_modelo(modelo_id: int):
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('DELETE FROM modelos WHERE id=%s', (modelo_id,))
+        conn.commit()
+        c.close()
+        conn.close()
+        return {"ok": True}
+    except Exception as e:
+        return {"erro": str(e)}
+
+# ─── LEMBRETES ────────────────────────────────────────────────────────────────
+
+@app.get("/lembretes")
+async def listar_lembretes():
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+        hoje = datetime.datetime.now(brasilia).date()
+        c.execute('''SELECT id, msg_id, telefone, nome, texto, data_lembrete::text
+                     FROM lembretes WHERE ativo=TRUE AND data_lembrete <= %s
+                     ORDER BY data_lembrete ASC''', (hoje,))
+        rows = c.fetchall()
+        c.close()
+        conn.close()
+        return [{"id": r[0], "msg_id": r[1], "telefone": r[2], "nome": r[3],
+                 "texto": r[4], "data": r[5]} for r in rows]
+    except:
+        return []
+
+@app.post("/lembrete")
+async def criar_lembrete(request: Request):
+    data = await request.json()
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''INSERT INTO lembretes (msg_id, telefone, nome, texto, data_lembrete)
+                     VALUES (%s,%s,%s,%s,%s) RETURNING id''',
+                  (data.get("msg_id"), data.get("telefone"), data.get("nome"),
+                   data.get("texto",""), data.get("data_lembrete")))
+        new_id = c.fetchone()[0]
+        conn.commit()
+        c.close()
+        conn.close()
+        return {"ok": True, "id": new_id}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.delete("/lembrete/{lembrete_id}")
+async def deletar_lembrete(lembrete_id: int):
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('UPDATE lembretes SET ativo=FALSE WHERE id=%s', (lembrete_id,))
+        conn.commit()
+        c.close()
+        conn.close()
+        return {"ok": True}
+    except Exception as e:
+        return {"erro": str(e)}
+
+# ─── EXPORTAR CSV ─────────────────────────────────────────────────────────────
+
+@app.get("/exportar-csv")
+async def exportar_csv():
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''SELECT telefone, nome, mensagem_original, area, urgencia, status,
+                            funil_status,
+                            TO_CHAR(criado_em - INTERVAL '3 hours','DD/MM/YYYY HH24:MI'),
+                            aprovado_por
+                     FROM mensagens ORDER BY id DESC''')
+        rows = c.fetchall()
+        c.close()
+        conn.close()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Telefone","Nome","Mensagem","Área","Urgência","Status","Funil","Data","Aprovado Por"])
+        for row in rows:
+            writer.writerow(row)
+
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=clientes.csv"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ─── RELATÓRIO SEMANAL ────────────────────────────────────────────────────────
+
+@app.post("/relatorio-semanal")
+async def enviar_relatorio_semanal():
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        brasilia     = datetime.timezone(datetime.timedelta(hours=-3))
+        agora        = datetime.datetime.now(brasilia)
+        semana_atras = agora - datetime.timedelta(days=7)
+
+        c.execute('SELECT COUNT(*) FROM mensagens WHERE criado_em >= %s', (semana_atras,))
+        total = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM mensagens WHERE criado_em >= %s AND status='enviado'", (semana_atras,))
+        enviados = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM mensagens WHERE criado_em >= %s AND status='contrato'", (semana_atras,))
+        contratos = c.fetchone()[0]
+        c.execute('''SELECT area, COUNT(*) FROM mensagens WHERE criado_em >= %s
+                     GROUP BY area ORDER BY 2 DESC LIMIT 3''', (semana_atras,))
+        por_area = c.fetchall()
+        c.close()
+        conn.close()
+
+        areas_texto = "\n".join([f"  - {r[0].upper()}: {r[1]}" for r in por_area]) if por_area else "  Nenhum"
+        data_inicio = semana_atras.strftime("%d/%m")
+        data_fim    = agora.strftime("%d/%m/%Y")
+
+        texto = f"""RELATORIO SEMANAL — {data_inicio} a {data_fim}
+
+Contatos recebidos: {total}
+Respostas enviadas: {enviados}
+Contratos fechados: {contratos}
+
+Por area:
+{areas_texto}
+
+Painel completo:
+{API_BASE}/relatorios"""
+
+        instance     = os.environ["ZAPI_INSTANCE"]
+        token        = os.environ["ZAPI_TOKEN"]
+        client_token = os.environ["ZAPI_CLIENT_TOKEN"]
+        url     = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
+        headers = {"Client-Token": client_token}
+        for numero in [IGOR, LETICIA]:
+            try:
+                requests.post(url, json={"phone": numero, "message": texto}, headers=headers, timeout=10)
+            except:
+                pass
+
+        return {"ok": True, "periodo": f"{data_inicio} a {data_fim}", "total": total}
+    except Exception as e:
+        return {"erro": str(e)}
+
+# ─── CONFIGURAÇÕES ─────────────────────────────────────────────────────────────
+
 @app.get("/config")
 async def get_configuracoes():
     return {
         "MSG_FORA_HORARIO": get_msg_fora_horario(),
-        "HORA_INICIO": get_config("HORA_INICIO", "8"),
-        "HORA_FIM":    get_config("HORA_FIM",    "18"),
+        "HORA_INICIO":      get_config("HORA_INICIO", "8"),
+        "HORA_FIM":         get_config("HORA_FIM",    "18"),
     }
 
 @app.post("/config")
@@ -495,6 +779,8 @@ async def salvar_configuracoes(request: Request):
 @app.get("/relatorios-dados")
 async def relatorios_dados():
     return buscar_relatorios()
+
+# ─── PÁGINAS ───────────────────────────────────────────────────────────────────
 
 @app.get("/painel")
 async def painel():
@@ -520,7 +806,8 @@ async def db_status():
         conn.close()
         return {"status": "conectado", "mensagens": count, "url_prefixo": db_url[:30]}
     except Exception as e:
-        return {"status": "erro", "erro": str(e), "DATABASE_URL": os.environ.get("DATABASE_URL", "NAO_DEFINIDA")[:30]}
+        return {"status": "erro", "erro": str(e),
+                "DATABASE_URL": os.environ.get("DATABASE_URL", "NAO_DEFINIDA")[:30]}
 
 @app.get("/")
 async def root():

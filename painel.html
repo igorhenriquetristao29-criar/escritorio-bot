@@ -21,7 +21,9 @@
 
         /* ── CABEÇALHO ── */
         header { background: #1a1a2e; color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+        .header-left { display: flex; flex-direction: column; gap: 2px; }
         header h1 { font-size: 18px; }
+        .header-usuario { font-size: 12px; color: #adb5bd; }
         .header-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .header-links a { color: #adb5bd; text-decoration: none; font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid #495057; }
         .header-links a:hover { background: #343a40; color: white; }
@@ -35,13 +37,30 @@
         .toolbar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
         .btn-atualizar { padding: 8px 18px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .btn-atualizar:hover { background: #0056b3; }
+        .btn-exportar { padding: 8px 14px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; text-decoration: none; display: inline-flex; align-items: center; }
+        .btn-exportar:hover { background: #218838; }
+        .btn-modelos-gerenciar { padding: 8px 14px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .btn-modelos-gerenciar:hover { background: #545b62; }
         .contador { color: #666; font-size: 13px; }
+
+        /* ── BUSCA ── */
+        .busca-wrap { margin-bottom: 12px; }
+        .busca-wrap input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+        .busca-wrap input:focus { border-color: #007bff; }
 
         /* ── FILTROS ── */
         .filtros { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
         .btn-filtro { padding: 6px 14px; border: 1px solid #dee2e6; border-radius: 20px; background: white; color: #555; font-size: 12px; cursor: pointer; }
         .btn-filtro:hover { background: #f8f9fa; }
         .btn-filtro.ativo { background: #1a1a2e; color: white; border-color: #1a1a2e; font-weight: bold; }
+
+        /* ── LEMBRETES ── */
+        #painel-lembretes { background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; display: none; }
+        #painel-lembretes h3 { font-size: 14px; color: #856404; margin-bottom: 10px; }
+        .lembrete-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #ffe08a; font-size: 13px; color: #555; }
+        .lembrete-item:last-child { border-bottom: none; }
+        .btn-dispensar { background: none; border: 1px solid #856404; color: #856404; padding: 3px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+        .btn-dispensar:hover { background: #856404; color: white; }
 
         /* ── CARDS ── */
         .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -53,7 +72,7 @@
         .cliente-nome { font-size: 16px; font-weight: bold; color: #333; }
         .cliente-tel { font-size: 12px; color: #888; }
         .mensagem-original { background: #f0f2f5; padding: 10px; border-radius: 8px; margin-bottom: 12px; color: #555; font-style: italic; font-size: 14px; }
-        .badges { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+        .badges { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
         .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
         .alta { background: #ffe0e0; color: #c0392b; }
         .media { background: #fff3cd; color: #856404; }
@@ -64,23 +83,34 @@
         .fora_da_area { background: #e2e3e5; color: #383d41; }
         .geral { background: #e2e3e5; color: #383d41; }
         .badge-fora-horario { background: #fff3cd; color: #856404; }
+        .badge-retorno { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
         .aviso-fora-area { background: #e8f4fd; border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #004085; font-size: 13px; }
         .aviso-fora-horario { background: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #856404; font-size: 13px; }
 
+        /* ── FUNIL ── */
+        .funil-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: #555; }
+        .funil-row select { padding: 4px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; cursor: pointer; }
+        .btn-historico { background: none; border: 1px solid #007bff; color: #007bff; padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+        .btn-historico:hover { background: #007bff; color: white; }
+
         /* ── RESPOSTA ── */
-        .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; font-size: 14px; }
+        .resposta-label { font-weight: bold; color: #333; margin-bottom: 6px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-usar-modelo { background: none; border: 1px solid #6f42c1; color: #6f42c1; padding: 3px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+        .btn-usar-modelo:hover { background: #6f42c1; color: white; }
         textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; min-height: 90px; resize: vertical; margin-bottom: 10px; font-family: Arial, sans-serif; }
         textarea:focus { outline: none; border-color: #007bff; }
 
         /* ── BOTÕES ── */
         .botoes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
         button { padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
-        .btn-aprovar { background: #28a745; color: white; }
-        .btn-aprovar:hover { background: #218838; }
+        .btn-aprovar  { background: #28a745; color: white; }
+        .btn-aprovar:hover  { background: #218838; }
         .btn-rejeitar { background: #dc3545; color: white; }
         .btn-rejeitar:hover { background: #c82333; }
         .btn-contrato { background: #6f42c1; color: white; }
         .btn-contrato:hover { background: #5a32a3; }
+        .btn-lembrete { background: #fd7e14; color: white; }
+        .btn-lembrete:hover { background: #e8670e; }
 
         /* ── FEEDBACK / OPÇÕES ── */
         .feedback-area { margin-top: 10px; display: none; }
@@ -103,7 +133,49 @@
         /* ── VAZIO ── */
         .vazio { text-align: center; color: #888; padding: 60px; font-size: 16px; }
 
-        /* ── MOBILE RESPONSIVO ── */
+        /* ── MODAL GENÉRICO ── */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 8000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .modal-box { background: white; border-radius: 14px; padding: 24px; width: 100%; max-width: 560px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.25); }
+        .modal-box h2 { font-size: 17px; color: #1a1a2e; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .modal-fechar { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; padding: 0; margin-top: -4px; }
+        .modal-fechar:hover { color: #333; }
+
+        /* ── MODAL HISTÓRICO ── */
+        .hist-item { padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 13px; }
+        .hist-cliente { background: #f0f2f5; }
+        .hist-escritorio { background: #d4edda; }
+        .hist-label { font-size: 11px; font-weight: bold; color: #888; margin-bottom: 4px; }
+        .hist-texto { color: #333; }
+        .hist-meta { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+        /* ── MODAL MODELOS ── */
+        .modelo-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; gap: 8px; }
+        .modelo-titulo { font-weight: bold; font-size: 13px; color: #333; }
+        .modelo-texto  { font-size: 12px; color: #666; margin-top: 4px; }
+        .modelo-acoes  { display: flex; gap: 6px; flex-shrink: 0; }
+        .btn-sm { padding: 4px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-sm-verde { background: #28a745; color: white; }
+        .btn-sm-vermelho { background: #dc3545; color: white; }
+        .novo-modelo-form { border-top: 1px solid #eee; margin-top: 14px; padding-top: 14px; }
+        .novo-modelo-form label { font-size: 12px; font-weight: bold; color: #555; display: block; margin-bottom: 4px; margin-top: 10px; }
+        .novo-modelo-form input,
+        .novo-modelo-form textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: Arial, sans-serif; outline: none; }
+        .novo-modelo-form textarea { min-height: 70px; resize: vertical; }
+        .novo-modelo-form input:focus,
+        .novo-modelo-form textarea:focus { border-color: #007bff; }
+
+        /* ── MODAL LEMBRETE ── */
+        .lembrete-form label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 5px; margin-top: 12px; }
+        .lembrete-form input,
+        .lembrete-form textarea { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: Arial, sans-serif; outline: none; }
+        .lembrete-form textarea { min-height: 60px; resize: vertical; }
+        .lembrete-form input:focus,
+        .lembrete-form textarea:focus { border-color: #007bff; }
+
+        /* ── ATALHOS ── */
+        .atalhos-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+        /* ── MOBILE ── */
         @media (max-width: 600px) {
             header { padding: 12px 14px; }
             header h1 { font-size: 15px; }
@@ -113,7 +185,7 @@
             .botoes button { width: 100%; padding: 12px; font-size: 14px; }
             .filtros { gap: 6px; }
             .btn-filtro { font-size: 11px; padding: 5px 10px; }
-            .cliente-nome { font-size: 15px; }
+            .toolbar { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -124,15 +196,74 @@
     <div class="login-box">
         <h2>Painel de Atendimento</h2>
         <p>Letícia Marques Advocacia</p>
-        <input type="password" id="campo-senha" placeholder="Digite a senha" onkeydown="if(event.key==='Enter') entrar()">
+        <input type="password" id="campo-senha" placeholder="Digite sua senha"
+               onkeydown="if(event.key==='Enter') entrar()">
         <button onclick="entrar()">Entrar</button>
         <div class="login-erro" id="erro-login">Senha incorreta. Tente novamente.</div>
     </div>
 </div>
 
+<!-- ── MODAIS ── -->
+
+<!-- Modal Histórico -->
+<div class="modal-overlay" id="modal-historico" style="display:none" onclick="fecharModal('modal-historico')">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <button class="modal-fechar" onclick="fecharModal('modal-historico')">✕</button>
+        <h2 id="modal-historico-titulo">Histórico do Cliente</h2>
+        <div id="modal-historico-conteudo"></div>
+    </div>
+</div>
+
+<!-- Modal Modelos de Resposta -->
+<div class="modal-overlay" id="modal-modelos" style="display:none" onclick="fecharModal('modal-modelos')">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <button class="modal-fechar" onclick="fecharModal('modal-modelos')">✕</button>
+        <h2>Modelos de Resposta</h2>
+        <div id="lista-modelos-modal"></div>
+        <div class="novo-modelo-form">
+            <strong style="font-size:13px">Adicionar novo modelo</strong>
+            <label>Título</label>
+            <input type="text" id="novo-modelo-titulo" placeholder="Ex: Primeiro contato BPC LOAS">
+            <label>Texto</label>
+            <textarea id="novo-modelo-texto" placeholder="Digite o modelo de resposta..."></textarea>
+            <button class="btn-aprovar" style="margin-top:10px" onclick="salvarModelo()">Salvar modelo</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Lembrete -->
+<div class="modal-overlay" id="modal-lembrete" style="display:none" onclick="fecharModal('modal-lembrete')">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <button class="modal-fechar" onclick="fecharModal('modal-lembrete')">✕</button>
+        <h2>Criar Lembrete de Follow-up</h2>
+        <div class="lembrete-form">
+            <label>Data do lembrete</label>
+            <input type="date" id="lembrete-data">
+            <label>Observação (opcional)</label>
+            <textarea id="lembrete-texto" placeholder="Ex: Ligar para confirmar consulta, enviar documentos..."></textarea>
+        </div>
+        <button class="btn-lembrete" style="margin-top:16px;width:100%" onclick="salvarLembrete()">Criar lembrete</button>
+        <input type="hidden" id="lembrete-msg-id">
+        <input type="hidden" id="lembrete-telefone">
+        <input type="hidden" id="lembrete-nome">
+    </div>
+</div>
+
+<!-- Modal Selecionar Modelo para Inserção -->
+<div class="modal-overlay" id="modal-escolher-modelo" style="display:none" onclick="fecharModal('modal-escolher-modelo')">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <button class="modal-fechar" onclick="fecharModal('modal-escolher-modelo')">✕</button>
+        <h2>Escolher modelo</h2>
+        <div id="lista-modelos-escolha"></div>
+    </div>
+</div>
+
 <!-- ── CABEÇALHO ── -->
 <header>
-    <h1>Painel de Atendimento</h1>
+    <div class="header-left">
+        <h1>Painel de Atendimento</h1>
+        <span class="header-usuario" id="header-usuario"></span>
+    </div>
     <div class="header-links">
         <a href="/relatorios">Relatórios</a>
         <a href="/configuracoes">Configurações</a>
@@ -144,16 +275,31 @@
 <main>
     <div class="toolbar">
         <button class="btn-atualizar" onclick="carregar()">Atualizar</button>
+        <a class="btn-exportar" href="https://web-production-3c5ee.up.railway.app/exportar-csv" target="_blank">Exportar CSV</a>
+        <button class="btn-modelos-gerenciar" onclick="abrirGerenciarModelos()">Modelos</button>
         <span class="contador" id="contador"></span>
+    </div>
+    <div class="atalhos-hint">Atalhos: <strong>Enter</strong> = aprovar card focado &nbsp;|&nbsp; <strong>Esc</strong> = fechar modal</div>
+
+    <!-- Lembretes do dia -->
+    <div id="painel-lembretes" style="margin-top:12px">
+        <h3>⏰ Lembretes de hoje</h3>
+        <div id="lista-lembretes-dia"></div>
+    </div>
+
+    <!-- Busca -->
+    <div class="busca-wrap" style="margin-top:12px">
+        <input type="text" id="campo-busca" placeholder="Buscar por nome ou número..."
+               oninput="renderizar()" onfocus="operacaoEmAndamento=true" onblur="operacaoEmAndamento=false">
     </div>
 
     <div class="filtros">
-        <button class="btn-filtro ativo" data-area="todos" onclick="filtrar('todos')">Todos</button>
-        <button class="btn-filtro" data-area="bpc_loas" onclick="filtrar('bpc_loas')">BPC LOAS</button>
-        <button class="btn-filtro" data-area="inventario" onclick="filtrar('inventario')">Inventário</button>
-        <button class="btn-filtro" data-area="licitacoes" onclick="filtrar('licitacoes')">Licitações</button>
-        <button class="btn-filtro" data-area="fora_da_area" onclick="filtrar('fora_da_area')">Fora da Área</button>
-        <button class="btn-filtro" data-area="fora_horario" onclick="filtrar('fora_horario')">Fora do Horário</button>
+        <button class="btn-filtro ativo" data-area="todos"        onclick="filtrar('todos')">Todos</button>
+        <button class="btn-filtro"       data-area="bpc_loas"     onclick="filtrar('bpc_loas')">BPC LOAS</button>
+        <button class="btn-filtro"       data-area="inventario"   onclick="filtrar('inventario')">Inventário</button>
+        <button class="btn-filtro"       data-area="licitacoes"   onclick="filtrar('licitacoes')">Licitações</button>
+        <button class="btn-filtro"       data-area="fora_da_area" onclick="filtrar('fora_da_area')">Fora da Área</button>
+        <button class="btn-filtro"       data-area="fora_horario" onclick="filtrar('fora_horario')">Fora do Horário</button>
     </div>
 
     <div id="mensagens"></div>
@@ -162,19 +308,23 @@
 <script>
     const API = 'https://web-production-3c5ee.up.railway.app';
     let operacaoEmAndamento = false;
-    let filtroAtual = 'todos';
-    let dadosTodos = [];
+    let filtroAtual   = 'todos';
+    let dadosTodos    = [];
     let countAnterior = null;
+    let modelosTodos  = [];
+    let modeloInsercaoId = null; // qual card vai receber o modelo
 
     // ── AUTENTICAÇÃO ──────────────────────────────────────────────────────────
     function verificarLogin() {
         if (localStorage.getItem('painel_logado') === '1') {
             document.getElementById('tela-login').style.display = 'none';
+            const u = localStorage.getItem('painel_usuario') || '';
+            if (u) document.getElementById('header-usuario').textContent = `Olá, ${u}`;
         }
     }
 
     async function entrar() {
-        const senha = document.getElementById('campo-senha').value;
+        const senha  = document.getElementById('campo-senha').value;
         const erroEl = document.getElementById('erro-login');
         erroEl.style.display = 'none';
         try {
@@ -184,9 +334,13 @@
                 body: JSON.stringify({senha})
             });
             if (res.ok) {
-                localStorage.setItem('painel_logado', '1');
+                const data = await res.json();
+                localStorage.setItem('painel_logado',  '1');
+                localStorage.setItem('painel_usuario', data.usuario || '');
                 document.getElementById('tela-login').style.display = 'none';
+                document.getElementById('header-usuario').textContent = `Olá, ${data.usuario || ''}`;
                 carregar();
+                carregarLembretesDia();
             } else {
                 erroEl.style.display = 'block';
                 document.getElementById('campo-senha').value = '';
@@ -200,10 +354,15 @@
 
     function sair() {
         localStorage.removeItem('painel_logado');
+        localStorage.removeItem('painel_usuario');
         location.reload();
     }
 
-    // ── SOM DE ALERTA ─────────────────────────────────────────────────────────
+    function getUsuario() {
+        return localStorage.getItem('painel_usuario') || '';
+    }
+
+    // ── SOM ───────────────────────────────────────────────────────────────────
     function tocarAlerta() {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -232,6 +391,8 @@
 
     // ── RENDERIZAÇÃO ──────────────────────────────────────────────────────────
     function renderizar() {
+        const busca = (document.getElementById('campo-busca')?.value || '').toLowerCase().trim();
+
         let dados = dadosTodos;
         if (filtroAtual === 'fora_horario') {
             dados = dadosTodos.filter(m => m.fora_horario);
@@ -239,6 +400,13 @@
             dados = dadosTodos.filter(m =>
                 m.analise.area === filtroAtual ||
                 (filtroAtual === 'fora_da_area' && m.analise.categoria === 'cliente_fora_area')
+            );
+        }
+
+        if (busca) {
+            dados = dados.filter(m =>
+                (m.nome || '').toLowerCase().includes(busca) ||
+                (m.telefone || '').includes(busca)
             );
         }
 
@@ -253,29 +421,39 @@
             return;
         }
 
+        const FUNIL_OPCOES = [
+            {value:'novo',       label:'Novo contato'},
+            {value:'consultado', label:'Consultado'},
+            {value:'reuniao',    label:'Reunião agendada'},
+            {value:'negociando', label:'Negociando'},
+        ];
+
         container.innerHTML = dados.map(m => {
-            const mid     = m.id || m.telefone;
-            const inicial = (m.nome || '?')[0].toUpperCase();
+            const mid      = m.id || m.telefone;
+            const inicial  = (m.nome || '?')[0].toUpperCase();
             const fotoHtml = m.foto
                 ? `<img class="foto" src="${m.foto}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="foto-placeholder" style="display:none">${inicial}</div>`
                 : `<div class="foto-placeholder">${inicial}</div>`;
 
-            const categoria = m.analise.categoria || 'cliente_nossa_area';
-            const foraArea  = categoria === 'cliente_fora_area';
-            const cardClass = foraArea ? 'fora-area' : 'nossa-area';
+            const categoria  = m.analise.categoria || 'cliente_nossa_area';
+            const foraArea   = categoria === 'cliente_fora_area';
+            const cardClass  = foraArea ? 'fora-area' : 'nossa-area';
+            const nomeSeguro = (m.nome || 'cliente').replace(/'/g, '');
+            const funilAtual = m.funil_status || 'novo';
 
             const avisoForaArea = foraArea
-                ? '<div class="aviso-fora-area">Fora da nossa área — Considere indicar um colega especialista.</div>'
-                : '';
-
+                ? '<div class="aviso-fora-area">Fora da nossa área — Considere indicar um colega especialista.</div>' : '';
             const avisoForaHorario = m.fora_horario
-                ? '<div class="aviso-fora-horario">Recebida fora do horário — auto-resposta já enviada ao cliente. Aprove uma resposta complementar se desejar.</div>'
-                : '';
+                ? '<div class="aviso-fora-horario">Recebida fora do horário — auto-resposta já enviada. Aprove resposta complementar se desejar.</div>' : '';
+            const badgeRetorno = m.retorno_cliente
+                ? '<span class="badge badge-retorno">RETORNO</span>' : '';
 
-            const nomeSeguro = (m.nome || 'cliente').replace(/'/g, '');
+            const funilOptions = FUNIL_OPCOES.map(o =>
+                `<option value="${o.value}" ${funilAtual===o.value?'selected':''}>${o.label}</option>`
+            ).join('');
 
             return `
-            <div class="card ${cardClass}" id="card-${mid}">
+            <div class="card ${cardClass}" id="card-${mid}" data-id="${mid}">
                 <div class="cliente-info">
                     ${fotoHtml}
                     <div>
@@ -289,15 +467,27 @@
                     <span class="badge ${m.analise.urgencia}">${(m.analise.urgencia||'').toUpperCase()}</span>
                     <span class="badge ${m.analise.area}">${(m.analise.area||'').replace(/_/g,' ').toUpperCase()}</span>
                     ${m.fora_horario ? '<span class="badge badge-fora-horario">FORA DO HORÁRIO</span>' : ''}
+                    ${badgeRetorno}
                 </div>
                 ${avisoForaArea}
                 ${avisoForaHorario}
-                <div class="resposta-label">Resposta sugerida pelo Claude:</div>
+
+                <div class="funil-row">
+                    <span>Funil:</span>
+                    <select onchange="atualizarFunil('${mid}', this.value)">${funilOptions}</select>
+                    <button class="btn-historico" onclick="abrirHistorico('${m.telefone}','${nomeSeguro}')">Ver histórico</button>
+                </div>
+
+                <div class="resposta-label">
+                    Resposta sugerida pelo Claude:
+                    <button class="btn-usar-modelo" onclick="abrirEscolherModelo('${mid}')">Usar modelo</button>
+                </div>
                 <textarea id="texto-${mid}">${m.analise.resposta || ''}</textarea>
                 <div class="botoes">
-                    <button class="btn-aprovar" onclick="aprovar('${mid}','${nomeSeguro}')">Aprovar e Enviar</button>
+                    <button class="btn-aprovar"  onclick="aprovar('${mid}','${nomeSeguro}')">Aprovar e Enviar</button>
                     <button class="btn-rejeitar" onclick="mostrarFeedback('${mid}')">Rejeitar</button>
                     <button class="btn-contrato" onclick="registrarContrato('${mid}','${nomeSeguro}')">Fechou Contrato</button>
+                    <button class="btn-lembrete" onclick="abrirLembrete('${mid}','${m.telefone}','${nomeSeguro}')">Lembrete</button>
                 </div>
 
                 <div class="feedback-area" id="feedback-${mid}">
@@ -322,21 +512,208 @@
         }).join('');
     }
 
-    // ── CARREGAR DADOS ────────────────────────────────────────────────────────
+    // ── CARREGAR ──────────────────────────────────────────────────────────────
     async function carregar() {
         try {
             const res   = await fetch(`${API}/pendentes`);
             const dados = await res.json();
-
-            if (countAnterior !== null && dados.length > countAnterior) {
-                tocarAlerta();
-            }
+            if (countAnterior !== null && dados.length > countAnterior) tocarAlerta();
             countAnterior = dados.length;
             dadosTodos = dados;
             renderizar();
         } catch (e) {
             console.error('Erro ao carregar:', e);
         }
+    }
+
+    // ── FUNIL ─────────────────────────────────────────────────────────────────
+    async function atualizarFunil(id, valor) {
+        try {
+            await fetch(`${API}/funil/${id}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({funil_status: valor})
+            });
+        } catch (e) { console.error('Erro funil:', e); }
+    }
+
+    // ── HISTÓRICO ─────────────────────────────────────────────────────────────
+    async function abrirHistorico(telefone, nome) {
+        document.getElementById('modal-historico-titulo').textContent = `Histórico — ${nome}`;
+        document.getElementById('modal-historico-conteudo').innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">Carregando...</p>';
+        document.getElementById('modal-historico').style.display = 'flex';
+        try {
+            const res  = await fetch(`${API}/historico/${telefone}`);
+            const hist = await res.json();
+            if (!hist.length) {
+                document.getElementById('modal-historico-conteudo').innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">Nenhum histórico encontrado.</p>';
+                return;
+            }
+            document.getElementById('modal-historico-conteudo').innerHTML = hist.map(h => `
+                <div class="hist-item hist-cliente">
+                    <div class="hist-label">Cliente — ${h.data || ''}</div>
+                    <div class="hist-texto">${h.mensagem || '—'}</div>
+                    <div class="hist-meta">Área: ${(h.area||'').replace(/_/g,' ').toUpperCase()} · Urgência: ${(h.urgencia||'').toUpperCase()}</div>
+                </div>
+                ${h.resposta ? `<div class="hist-item hist-escritorio">
+                    <div class="hist-label">Escritório${h.aprovado_por ? ' — ' + h.aprovado_por : ''}</div>
+                    <div class="hist-texto">${h.resposta}</div>
+                </div>` : ''}
+            `).join('');
+        } catch (e) {
+            document.getElementById('modal-historico-conteudo').innerHTML = '<p style="color:#dc3545;text-align:center;padding:20px">Erro ao carregar histórico.</p>';
+        }
+    }
+
+    // ── MODELOS ───────────────────────────────────────────────────────────────
+    async function carregarModelos() {
+        try {
+            const res = await fetch(`${API}/modelos`);
+            modelosTodos = await res.json();
+        } catch (e) { modelosTodos = []; }
+    }
+
+    async function abrirGerenciarModelos() {
+        await carregarModelos();
+        renderizarModelosGerenciar();
+        document.getElementById('modal-modelos').style.display = 'flex';
+    }
+
+    function renderizarModelosGerenciar() {
+        const el = document.getElementById('lista-modelos-modal');
+        if (!modelosTodos.length) {
+            el.innerHTML = '<p style="color:#aaa;font-size:13px">Nenhum modelo salvo ainda.</p>';
+            return;
+        }
+        el.innerHTML = modelosTodos.map(m => `
+            <div class="modelo-item">
+                <div>
+                    <div class="modelo-titulo">${m.titulo}</div>
+                    <div class="modelo-texto">${m.texto}</div>
+                </div>
+                <div class="modelo-acoes">
+                    <button class="btn-sm btn-sm-vermelho" onclick="deletarModelo(${m.id})">Excluir</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function salvarModelo() {
+        const titulo = document.getElementById('novo-modelo-titulo').value.trim();
+        const texto  = document.getElementById('novo-modelo-texto').value.trim();
+        if (!titulo || !texto) { alert('Preencha título e texto.'); return; }
+        try {
+            await fetch(`${API}/modelos`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({titulo, texto})
+            });
+            document.getElementById('novo-modelo-titulo').value = '';
+            document.getElementById('novo-modelo-texto').value  = '';
+            await carregarModelos();
+            renderizarModelosGerenciar();
+        } catch (e) { alert('Erro ao salvar modelo.'); }
+    }
+
+    async function deletarModelo(id) {
+        if (!confirm('Excluir este modelo?')) return;
+        try {
+            await fetch(`${API}/modelos/${id}`, { method: 'DELETE' });
+            await carregarModelos();
+            renderizarModelosGerenciar();
+        } catch (e) { alert('Erro ao excluir.'); }
+    }
+
+    async function abrirEscolherModelo(cardId) {
+        await carregarModelos();
+        modeloInsercaoId = cardId;
+        const el = document.getElementById('lista-modelos-escolha');
+        if (!modelosTodos.length) {
+            el.innerHTML = '<p style="color:#aaa;font-size:13px;text-align:center;padding:20px">Nenhum modelo salvo. Crie modelos clicando no botão "Modelos".</p>';
+        } else {
+            el.innerHTML = modelosTodos.map(m => `
+                <div class="modelo-item" style="cursor:pointer" onclick="inserirModelo(${m.id})">
+                    <div>
+                        <div class="modelo-titulo">${m.titulo}</div>
+                        <div class="modelo-texto">${m.texto}</div>
+                    </div>
+                    <div class="modelo-acoes">
+                        <button class="btn-sm btn-sm-verde" onclick="event.stopPropagation();inserirModelo(${m.id})">Usar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        document.getElementById('modal-escolher-modelo').style.display = 'flex';
+    }
+
+    function inserirModelo(modeloId) {
+        const modelo = modelosTodos.find(m => m.id === modeloId);
+        if (modelo && modeloInsercaoId) {
+            document.getElementById(`texto-${modeloInsercaoId}`).value = modelo.texto;
+        }
+        fecharModal('modal-escolher-modelo');
+    }
+
+    // ── LEMBRETES ─────────────────────────────────────────────────────────────
+    async function carregarLembretesDia() {
+        try {
+            const res  = await fetch(`${API}/lembretes`);
+            const data = await res.json();
+            const painel = document.getElementById('painel-lembretes');
+            const lista  = document.getElementById('lista-lembretes-dia');
+            if (!data.length) { painel.style.display = 'none'; return; }
+            painel.style.display = 'block';
+            lista.innerHTML = data.map(l => `
+                <div class="lembrete-item" id="lembrete-item-${l.id}">
+                    <span><strong>${l.nome || l.telefone}</strong>${l.texto ? ' — ' + l.texto : ''} <em style="color:#aaa">(${l.data})</em></span>
+                    <button class="btn-dispensar" onclick="dispensarLembrete(${l.id})">Dispensar</button>
+                </div>
+            `).join('');
+        } catch (e) {}
+    }
+
+    async function dispensarLembrete(id) {
+        try {
+            await fetch(`${API}/lembrete/${id}`, { method: 'DELETE' });
+            document.getElementById(`lembrete-item-${id}`)?.remove();
+            const restantes = document.querySelectorAll('[id^="lembrete-item-"]');
+            if (!restantes.length) document.getElementById('painel-lembretes').style.display = 'none';
+        } catch (e) {}
+    }
+
+    function abrirLembrete(msgId, telefone, nome) {
+        document.getElementById('lembrete-msg-id').value  = msgId;
+        document.getElementById('lembrete-telefone').value = telefone;
+        document.getElementById('lembrete-nome').value    = nome;
+        document.getElementById('lembrete-data').value    = '';
+        document.getElementById('lembrete-texto').value   = '';
+        // Data padrão = amanhã
+        const amanha = new Date(); amanha.setDate(amanha.getDate()+1);
+        document.getElementById('lembrete-data').value = amanha.toISOString().split('T')[0];
+        document.getElementById('modal-lembrete').style.display = 'flex';
+    }
+
+    async function salvarLembrete() {
+        const data_l  = document.getElementById('lembrete-data').value;
+        const texto   = document.getElementById('lembrete-texto').value;
+        const msg_id  = document.getElementById('lembrete-msg-id').value;
+        const tel     = document.getElementById('lembrete-telefone').value;
+        const nome    = document.getElementById('lembrete-nome').value;
+        if (!data_l) { alert('Escolha a data do lembrete.'); return; }
+        try {
+            await fetch(`${API}/lembrete`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({msg_id: parseInt(msg_id)||null, telefone: tel, nome, texto, data_lembrete: data_l})
+            });
+            fecharModal('modal-lembrete');
+            alert('Lembrete criado!');
+        } catch (e) { alert('Erro ao criar lembrete.'); }
+    }
+
+    // ── MODAIS ────────────────────────────────────────────────────────────────
+    function fecharModal(id) {
+        document.getElementById(id).style.display = 'none';
     }
 
     // ── AÇÕES ─────────────────────────────────────────────────────────────────
@@ -358,9 +735,8 @@
             });
             const data = await res.json();
             if (data.erro) { alert('Erro: ' + data.erro); return; }
-
-            const opcoes  = data.analise.opcoes || [data.analise.resposta];
-            const listaEl = document.getElementById(`lista-opcoes-${id}`);
+            const opcoes   = data.analise.opcoes || [data.analise.resposta];
+            const listaEl  = document.getElementById(`lista-opcoes-${id}`);
             const opcoesEl = document.getElementById(`opcoes-${id}`);
             listaEl.innerHTML = opcoes.map((op, i) => `
                 <button class="btn-opcao" onclick="selecionarOpcao('${id}', this)">
@@ -387,10 +763,10 @@
         const mensagem = document.getElementById(`texto-${id}`).value;
         if (!confirm(`Enviar esta mensagem para ${nome}?\n\n"${mensagem}"`)) return;
         try {
-            const res = await fetch(`${API}/aprovar/${id}`, {
+            const res  = await fetch(`${API}/aprovar/${id}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({mensagem})
+                body: JSON.stringify({mensagem, usuario: getUsuario()})
             });
             const data = await res.json();
             if (data.erro) { alert(data.erro); return; }
@@ -405,7 +781,11 @@
     async function registrarContrato(id, nome) {
         if (!confirm(`Registrar que ${nome} fechou contrato?`)) return;
         try {
-            const res  = await fetch(`${API}/contratar/${id}`, { method: 'POST' });
+            const res  = await fetch(`${API}/contratar/${id}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({usuario: getUsuario()})
+            });
             const data = await res.json();
             if (data.erro) { alert(data.erro); return; }
             dadosTodos = dadosTodos.filter(m => m.id !== id);
@@ -447,10 +827,31 @@
         }
     }
 
+    // ── ATALHOS DE TECLADO ────────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+        // Esc — fecha qualquer modal aberto
+        if (e.key === 'Escape') {
+            ['modal-historico','modal-modelos','modal-lembrete','modal-escolher-modelo'].forEach(id => {
+                document.getElementById(id).style.display = 'none';
+            });
+        }
+        // Enter — aprova o primeiro card visível (quando não há modal aberto e não está em textarea)
+        if (e.key === 'Enter' && e.ctrlKey) {
+            const cards = document.querySelectorAll('.card');
+            if (cards.length > 0) {
+                const mid = cards[0].dataset.id;
+                if (mid) {
+                    const nome = cards[0].querySelector('.cliente-nome')?.textContent || 'cliente';
+                    aprovar(mid, nome);
+                }
+            }
+        }
+    });
+
     // ── AUTO-REFRESH ──────────────────────────────────────────────────────────
     function temDigitacaoAtiva() {
         if (operacaoEmAndamento) return true;
-        for (const campo of document.querySelectorAll('textarea')) {
+        for (const campo of document.querySelectorAll('textarea, input[type="text"]')) {
             if (document.activeElement === campo || campo.value.trim() !== '') return true;
         }
         return false;
@@ -458,7 +859,10 @@
 
     // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────
     verificarLogin();
-    if (localStorage.getItem('painel_logado') === '1') carregar();
+    if (localStorage.getItem('painel_logado') === '1') {
+        carregar();
+        carregarLembretesDia();
+    }
     setInterval(() => {
         if (localStorage.getItem('painel_logado') === '1' && !temDigitacaoAtiva()) carregar();
     }, 30000);
