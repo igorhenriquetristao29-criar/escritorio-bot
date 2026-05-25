@@ -3,3 +3,4 @@ uvicorn
 requests
 anthropic
 python-dotenv
+psycopg2-binary

@@ -6,80 +6,75 @@ import requests
 import os
 import json
 import re
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import datetime
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 mensagens_pendentes = {}
-IGOR = "5564981475621"
+IGOR    = "5564981475621"
 LETICIA = "5564981177107"
 
-# Usa volume Railway (/data) se disponível, senão pasta local
-DATA_DIR = "/data" if os.path.isdir("/data") else "."
-DB_PATH = os.path.join(DATA_DIR, "mensagens.db")
+# ─── BANCO DE DADOS (PostgreSQL) ──────────────────────────────────────────────
 
-# ─── BANCO DE DADOS ───────────────────────────────────────────────────────────
+def get_conn():
+    return psycopg2.connect(os.environ["DATABASE_URL"])
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn()
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS mensagens (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        telefone TEXT NOT NULL,
-        nome TEXT,
-        foto TEXT,
+        id               SERIAL PRIMARY KEY,
+        telefone         TEXT NOT NULL,
+        nome             TEXT,
+        foto             TEXT,
         mensagem_original TEXT,
-        urgencia TEXT,
-        area TEXT,
-        categoria TEXT,
+        urgencia         TEXT,
+        area             TEXT,
+        categoria        TEXT,
         resposta_sugerida TEXT,
-        resposta_enviada TEXT,
-        status TEXT DEFAULT 'pendente',
-        fora_horario INTEGER DEFAULT 0,
-        criado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+        resposta_enviada  TEXT,
+        status           TEXT DEFAULT 'pendente',
+        fora_horario     BOOLEAN DEFAULT FALSE,
+        criado_em        TIMESTAMP DEFAULT NOW()
     )''')
-    # Adiciona colunas que podem não existir em bancos antigos
-    for col in [
-        "ALTER TABLE mensagens ADD COLUMN fora_horario INTEGER DEFAULT 0",
-    ]:
-        try:
-            c.execute(col)
-            conn.commit()
-        except:
-            pass
     c.execute('''CREATE TABLE IF NOT EXISTS notas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        telefone TEXT NOT NULL UNIQUE,
-        texto TEXT DEFAULT '',
-        atualizado_em TEXT DEFAULT (datetime('now', '-3 hours'))
+        id           SERIAL PRIMARY KEY,
+        telefone     TEXT NOT NULL UNIQUE,
+        texto        TEXT DEFAULT '',
+        atualizado_em TIMESTAMP DEFAULT NOW()
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS configuracoes (
         chave TEXT PRIMARY KEY,
         valor TEXT
     )''')
     conn.commit()
+    c.close()
     conn.close()
+    print(f"Banco PostgreSQL iniciado. DB_PATH: {os.environ.get('DATABASE_URL','?')[:30]}...")
 
 def salvar_mensagem_db(dados, fora_horario=False):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
         analise = dados.get("analise", {})
         c.execute('''
             INSERT INTO mensagens
               (telefone, nome, foto, mensagem_original, urgencia, area, categoria, resposta_sugerida, status, fora_horario)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendente', %s)
+            RETURNING id
         ''', (
             dados["telefone"], dados["nome"], dados.get("foto", ""),
             dados["mensagem_original"],
             analise.get("urgencia", "baixa"), analise.get("area", "geral"),
             analise.get("categoria", "irrelevante"), analise.get("resposta", ""),
-            1 if fora_horario else 0,
+            fora_horario,
         ))
-        rowid = c.lastrowid
+        rowid = c.fetchone()[0]
         conn.commit()
+        c.close()
         conn.close()
         return rowid
     except Exception as e:
@@ -88,27 +83,29 @@ def salvar_mensagem_db(dados, fora_horario=False):
 
 def atualizar_status_db(msg_id, status, resposta_enviada=None):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
         if resposta_enviada:
-            c.execute('UPDATE mensagens SET status=?, resposta_enviada=? WHERE id=?',
+            c.execute('UPDATE mensagens SET status=%s, resposta_enviada=%s WHERE id=%s',
                       (status, resposta_enviada, msg_id))
         else:
-            c.execute('UPDATE mensagens SET status=? WHERE id=?', (status, msg_id))
+            c.execute('UPDATE mensagens SET status=%s WHERE id=%s', (status, msg_id))
         conn.commit()
+        c.close()
         conn.close()
     except Exception as e:
         print(f"Erro ao atualizar banco: {e}")
 
 def carregar_pendentes_do_db():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
         c.execute('''
             SELECT id, telefone, nome, foto, mensagem_original, urgencia, area, categoria, resposta_sugerida, fora_horario
             FROM mensagens WHERE status = 'pendente' ORDER BY criado_em ASC
         ''')
         rows = c.fetchall()
+        c.close()
         conn.close()
         for row in rows:
             db_id, telefone, nome, foto, msg_original, urgencia, area, categoria, resposta, fora_h = row
@@ -132,14 +129,15 @@ def carregar_pendentes_do_db():
 
 def buscar_historico_conversa(telefone):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
         c.execute('''
             SELECT mensagem_original, resposta_enviada FROM mensagens
-            WHERE telefone=? AND status='enviado' AND resposta_enviada IS NOT NULL
+            WHERE telefone=%s AND status='enviado' AND resposta_enviada IS NOT NULL
             ORDER BY criado_em ASC
         ''', (telefone,))
         rows = c.fetchall()
+        c.close()
         conn.close()
         return rows
     except Exception as e:
@@ -148,22 +146,24 @@ def buscar_historico_conversa(telefone):
 
 def buscar_relatorios():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
         c.execute('SELECT COUNT(*) FROM mensagens')
         total = c.fetchone()[0]
         c.execute('SELECT area, COUNT(*) FROM mensagens GROUP BY area ORDER BY 2 DESC')
         por_area = [{"area": r[0], "total": r[1]} for r in c.fetchall()]
-        c.execute('''SELECT substr(criado_em,1,7) as mes, COUNT(*) FROM mensagens
-                     GROUP BY mes ORDER BY mes DESC LIMIT 12''')
+        c.execute('''SELECT TO_CHAR(criado_em - INTERVAL '3 hours', 'YYYY-MM') as mes, COUNT(*)
+                     FROM mensagens GROUP BY mes ORDER BY mes DESC LIMIT 12''')
         por_mes = [{"mes": r[0], "total": r[1]} for r in c.fetchall()]
         c.execute('SELECT status, COUNT(*) FROM mensagens GROUP BY status')
         por_status = [{"status": r[0], "total": r[1]} for r in c.fetchall()]
-        c.execute('''SELECT telefone, nome, mensagem_original, area, urgencia, status, criado_em, fora_horario
+        c.execute('''SELECT telefone, nome, mensagem_original, area, urgencia, status,
+                            TO_CHAR(criado_em - INTERVAL '3 hours', 'YYYY-MM-DD HH24:MI'), fora_horario
                      FROM mensagens ORDER BY id DESC LIMIT 50''')
         ultimas = [{"telefone": r[0], "nome": r[1], "mensagem": r[2], "area": r[3],
                     "urgencia": r[4], "status": r[5], "data": r[6], "fora_horario": bool(r[7])}
                    for r in c.fetchall()]
+        c.close()
         conn.close()
         return {"total": total, "por_area": por_area, "por_mes": por_mes,
                 "por_status": por_status, "ultimas": ultimas}
@@ -175,10 +175,11 @@ def buscar_relatorios():
 
 def get_config(chave, padrao=""):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
-        c.execute('SELECT valor FROM configuracoes WHERE chave=?', (chave,))
+        c.execute('SELECT valor FROM configuracoes WHERE chave=%s', (chave,))
         row = c.fetchone()
+        c.close()
         conn.close()
         return row[0] if row else padrao
     except:
@@ -186,11 +187,12 @@ def get_config(chave, padrao=""):
 
 def set_config(chave, valor):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
-        c.execute('''INSERT INTO configuracoes (chave, valor) VALUES (?,?)
-                     ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor''', (chave, valor))
+        c.execute('''INSERT INTO configuracoes (chave, valor) VALUES (%s, %s)
+                     ON CONFLICT (chave) DO UPDATE SET valor=EXCLUDED.valor''', (chave, valor))
         conn.commit()
+        c.close()
         conn.close()
     except Exception as e:
         print(f"Erro ao salvar config: {e}")
@@ -227,23 +229,18 @@ def notificar_equipe(nome, mensagem, urgencia, area, categoria, fora_horario=Fal
     url     = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
     headers = {"Client-Token": client_token}
 
-    if fora_horario:
-        tag = "FORA DO HORARIO"
-    elif categoria == "cliente_fora_area":
-        tag = "FORA DA AREA"
-    elif urgencia == "alta":
-        tag = "URGENTE"
-    elif urgencia == "media":
-        tag = "NORMAL"
-    else:
-        tag = "BAIXA PRIORIDADE"
+    if fora_horario:        tag = "FORA DO HORARIO"
+    elif categoria == "cliente_fora_area": tag = "FORA DA AREA"
+    elif urgencia == "alta":               tag = "URGENTE"
+    elif urgencia == "media":              tag = "NORMAL"
+    else:                                  tag = "BAIXA PRIORIDADE"
 
-    aviso_fora = "\n(Auto-resposta já enviada — aguarda aprovação no painel)" if fora_horario else ""
+    aviso = "\n(Auto-resposta enviada — aguarda aprovacao no painel)" if fora_horario else ""
     texto = f"""{tag} - Nova mensagem!
 
 Cliente: {nome}
 Mensagem: "{mensagem}"
-Area: {area.upper()}{aviso_fora}
+Area: {area.upper()}{aviso}
 
 Painel:
 https://web-production-444ef9.up.railway.app/painel"""
@@ -336,15 +333,12 @@ def enviar_whatsapp(telefone, mensagem):
 # ─── FORA DO HORÁRIO ───────────────────────────────────────────────────────────
 
 def processar_mensagem_fora_horario(telefone, texto, nome, foto):
-    """Processa em background mensagens recebidas fora do horário."""
     try:
         historico = buscar_historico_conversa(telefone)
         analise   = analisar_mensagem(texto, historico=historico)
         categoria = analise.get("categoria", "irrelevante")
-
         if categoria in ["conversa_pessoal", "irrelevante"]:
             return
-
         msg = {
             "telefone": telefone, "nome": nome, "foto": foto or "",
             "mensagem_original": texto, "analise": analise,
@@ -355,7 +349,6 @@ def processar_mensagem_fora_horario(telefone, texto, nome, foto):
             chave = str(db_id)
             msg["id"] = chave
             mensagens_pendentes[chave] = msg
-
         notificar_equipe(nome, texto, analise["urgencia"], analise["area"], categoria, fora_horario=True)
     except Exception as e:
         print(f"Erro ao processar fora do horário: {e}")
@@ -372,7 +365,6 @@ async def login(request: Request):
 @app.post("/webhook")
 async def webhook(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
-
     if data.get("isGroup") or data.get("isNewsletter"):
         return {"status": "ignorado - grupo"}
     if data.get("isStatusReply"):
@@ -385,13 +377,10 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     nome     = data.get("senderName", "Cliente")
     foto     = data.get("photo", "")
 
-    if not texto:
-        return {"status": "sem texto"}
-    if telefone in [IGOR, LETICIA]:
-        return {"status": "ignorado - equipe"}
+    if not texto:            return {"status": "sem texto"}
+    if telefone in [IGOR, LETICIA]: return {"status": "ignorado - equipe"}
 
     if not dentro_do_horario():
-        print(f"FORA DO HORARIO: {nome} - {texto}")
         enviar_whatsapp(telefone, get_msg_fora_horario())
         background_tasks.add_task(processar_mensagem_fora_horario, telefone, texto, nome, foto)
         return {"status": "fora do horario - auto-resposta enviada"}
@@ -401,7 +390,6 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     categoria = analise.get("categoria", "irrelevante")
 
     if categoria in ["conversa_pessoal", "irrelevante"]:
-        print(f"IGNORADO ({categoria}): {nome} - {texto}")
         return {"status": f"ignorado - {categoria}"}
 
     msg = {
@@ -455,10 +443,11 @@ async def contratar(msg_id: str):
 @app.get("/nota/{telefone}")
 async def get_nota(telefone: str):
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
-        c.execute('SELECT texto FROM notas WHERE telefone=?', (telefone,))
+        c.execute('SELECT texto FROM notas WHERE telefone=%s', (telefone,))
         row = c.fetchone()
+        c.close()
         conn.close()
         return {"texto": row[0] if row else ""}
     except:
@@ -469,12 +458,13 @@ async def salvar_nota(telefone: str, request: Request):
     data = await request.json()
     texto = data.get("texto", "")
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         c = conn.cursor()
-        c.execute('''INSERT INTO notas (telefone, texto) VALUES (?,?)
-                     ON CONFLICT(telefone) DO UPDATE SET texto=excluded.texto,
-                     atualizado_em=datetime('now','-3 hours')''', (telefone, texto))
+        c.execute('''INSERT INTO notas (telefone, texto) VALUES (%s, %s)
+                     ON CONFLICT (telefone) DO UPDATE SET texto=EXCLUDED.texto, atualizado_em=NOW()''',
+                  (telefone, texto))
         conn.commit()
+        c.close()
         conn.close()
         return {"ok": True}
     except Exception as e:
