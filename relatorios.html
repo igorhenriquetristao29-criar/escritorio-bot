@@ -100,6 +100,36 @@
         <div class="card-resumo azul"><div class="numero" id="total-mes">—</div><div class="label">Neste mês</div></div>
     </div>
 
+    <!-- Custos Claude -->
+    <div class="secao" id="secao-custo">
+        <h2>Gasto com Claude AI</h2>
+        <div class="resumo" style="margin-bottom:0">
+            <div class="card-resumo">
+                <div class="numero" id="custo-hoje" style="font-size:24px">—</div>
+                <div class="label">Hoje (USD)</div>
+            </div>
+            <div class="card-resumo azul">
+                <div class="numero" id="custo-mes" style="font-size:24px">—</div>
+                <div class="label">Este mês (USD)</div>
+            </div>
+            <div class="card-resumo">
+                <div class="numero" id="custo-total" style="font-size:24px">—</div>
+                <div class="label">Total acumulado</div>
+            </div>
+            <div class="card-resumo amarelo">
+                <div class="numero" id="chamadas-mes" style="font-size:24px">—</div>
+                <div class="label">Chamadas este mês</div>
+            </div>
+        </div>
+        <p id="aviso-limite-custo" style="margin-top:12px;font-size:13px;color:#dc3545;display:none">
+            ⚠️ Limite diário atingido — Claude pausado até amanhã.
+        </p>
+        <p style="margin-top:8px;font-size:12px;color:#aaa">
+            Preços: $3/milhão tokens entrada · $15/milhão tokens saída (Claude Sonnet) ·
+            <a href="/configuracoes" style="color:#007bff">Configurar limite</a>
+        </p>
+    </div>
+
     <!-- Por área -->
     <div class="secao">
         <h2>Contatos por área</h2>
@@ -171,7 +201,22 @@
         return `${nomes[parseInt(mes)-1]}/${ano}`;
     }
 
+    async function carregarCusto() {
+        try {
+            const res = await fetch(`${API}/custo`);
+            const c   = await res.json();
+            document.getElementById('custo-hoje').textContent   = `$${c.custo_hoje.toFixed(4)}`;
+            document.getElementById('custo-mes').textContent    = `$${c.custo_mes.toFixed(4)}`;
+            document.getElementById('custo-total').textContent  = `$${c.custo_total.toFixed(4)}`;
+            document.getElementById('chamadas-mes').textContent = c.chamadas_mes;
+            if (c.limite_atingido) {
+                document.getElementById('aviso-limite-custo').style.display = 'block';
+            }
+        } catch (e) { console.error('Erro ao carregar custo:', e); }
+    }
+
     async function carregar() {
+        carregarCusto();
         try {
             const res = await fetch(`${API}/relatorios-dados`);
             const d = await res.json();

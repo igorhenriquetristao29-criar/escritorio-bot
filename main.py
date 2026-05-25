@@ -15,6 +15,10 @@ IGOR    = "5564981475621"
 LETICIA = "5564981177107"
 API_BASE = "https://web-production-3c5ee.up.railway.app"
 
+# Preços Claude Sonnet (USD por token)
+PRECO_INPUT  = 3.0  / 1_000_000   # $3 por milhão de tokens de entrada
+PRECO_OUTPUT = 15.0 / 1_000_000   # $15 por milhão de tokens de saída
+
 # ─── BANCO DE DADOS ────────────────────────────────────────────────────────────
 
 def get_conn():
@@ -71,6 +75,15 @@ def init_db():
         titulo    TEXT NOT NULL,
         texto     TEXT NOT NULL,
         criado_em TIMESTAMP DEFAULT NOW()
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS uso_claude (
+        id             SERIAL PRIMARY KEY,
+        msg_id         INTEGER,
+        tokens_entrada INTEGER DEFAULT 0,
+        tokens_saida   INTEGER DEFAULT 0,
+        custo_usd      NUMERIC(10,6) DEFAULT 0,
+        criado_em      TIMESTAMP DEFAULT NOW()
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS lembretes (
@@ -266,6 +279,74 @@ def set_config(chave, valor):
     except Exception as e:
         print(f"Erro ao salvar config: {e}")
 
+# ─── CONTROLE DE CUSTO CLAUDE ─────────────────────────────────────────────────
+
+def registrar_uso_claude(tokens_entrada, tokens_saida, custo_usd, msg_id=None):
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''INSERT INTO uso_claude (msg_id, tokens_entrada, tokens_saida, custo_usd)
+                     VALUES (%s,%s,%s,%s)''',
+                  (msg_id, tokens_entrada, tokens_saida, round(custo_usd, 6)))
+        conn.commit()
+        c.close()
+        conn.close()
+    except Exception as e:
+        print(f"Erro ao registrar uso Claude: {e}")
+
+def buscar_custo():
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+        agora    = datetime.datetime.now(brasilia)
+        hoje     = agora.date()
+        mes      = agora.strftime('%Y-%m')
+
+        c.execute("""SELECT COALESCE(SUM(custo_usd),0), COUNT(*)
+                     FROM uso_claude
+                     WHERE DATE(criado_em - INTERVAL '3 hours') = %s""", (hoje,))
+        r = c.fetchone()
+        custo_hoje, chamadas_hoje = float(r[0]), int(r[1])
+
+        c.execute("""SELECT COALESCE(SUM(custo_usd),0), COUNT(*)
+                     FROM uso_claude
+                     WHERE TO_CHAR(criado_em - INTERVAL '3 hours','YYYY-MM') = %s""", (mes,))
+        r = c.fetchone()
+        custo_mes, chamadas_mes = float(r[0]), int(r[1])
+
+        c.execute("SELECT COALESCE(SUM(custo_usd),0), COUNT(*) FROM uso_claude")
+        r = c.fetchone()
+        custo_total, chamadas_total = float(r[0]), int(r[1])
+
+        c.close()
+        conn.close()
+        limite = float(get_config("LIMITE_DIARIO_USD", "0"))
+        return {
+            "custo_hoje":     round(custo_hoje,    4),
+            "custo_mes":      round(custo_mes,     4),
+            "custo_total":    round(custo_total,   4),
+            "chamadas_hoje":  chamadas_hoje,
+            "chamadas_mes":   chamadas_mes,
+            "chamadas_total": chamadas_total,
+            "limite_diario":  limite,
+            "limite_ativo":   limite > 0,
+            "limite_atingido": limite > 0 and custo_hoje >= limite,
+        }
+    except Exception as e:
+        print(f"Erro ao buscar custo: {e}")
+        return {"custo_hoje":0,"custo_mes":0,"custo_total":0,
+                "chamadas_hoje":0,"chamadas_mes":0,"chamadas_total":0,
+                "limite_diario":0,"limite_ativo":False,"limite_atingido":False}
+
+def dentro_do_limite():
+    """Retorna False se o limite diário foi atingido."""
+    limite = float(get_config("LIMITE_DIARIO_USD", "0"))
+    if limite <= 0:
+        return True
+    dados = buscar_custo()
+    return dados["custo_hoje"] < limite
+
 # Inicializa banco ao subir
 try:
     init_db()
@@ -388,11 +469,15 @@ Responda SOMENTE com JSON válido, sem explicações, sem markdown:
 {formato_json}"""}]
     )
 
+    tokens_in  = resposta.usage.input_tokens
+    tokens_out = resposta.usage.output_tokens
+    custo      = tokens_in * PRECO_INPUT + tokens_out * PRECO_OUTPUT
+
     texto_resposta = resposta.content[0].text.strip()
     match = re.search(r'\{.*\}', texto_resposta, re.DOTALL)
-    if match:
-        return json.loads(match.group())
-    return {"categoria": "irrelevante", "urgencia": "baixa", "area": "geral", "perfil": "simples", "resposta": ""}
+    analise = json.loads(match.group()) if match else \
+              {"categoria": "irrelevante", "urgencia": "baixa", "area": "geral", "perfil": "simples", "resposta": ""}
+    return analise, tokens_in, tokens_out, custo
 
 # ─── Z-API ────────────────────────────────────────────────────────────────────
 
@@ -409,8 +494,15 @@ def enviar_whatsapp(telefone, mensagem):
 
 def processar_mensagem_fora_horario(telefone, texto, nome, foto):
     try:
-        historico = buscar_historico_conversa(telefone)
-        analise   = analisar_mensagem(texto, historico=historico)
+        if not dentro_do_limite():
+            print("Limite diário Claude atingido — mensagem enfileirada sem análise.")
+            analise = {"categoria": "cliente_nossa_area", "urgencia": "media",
+                       "area": "geral", "perfil": "simples", "resposta": ""}
+            tokens_in, tokens_out, custo = 0, 0, 0.0
+        else:
+            historico = buscar_historico_conversa(telefone)
+            analise, tokens_in, tokens_out, custo = analisar_mensagem(texto, historico=historico)
+
         categoria = analise.get("categoria", "irrelevante")
         if categoria in ["conversa_pessoal", "irrelevante"]:
             return
@@ -421,10 +513,12 @@ def processar_mensagem_fora_horario(telefone, texto, nome, foto):
         }
         db_id, retorno = salvar_mensagem_db(msg, fora_horario=True)
         if db_id:
+            if custo > 0:
+                registrar_uso_claude(tokens_in, tokens_out, custo, msg_id=db_id)
             chave = str(db_id)
-            msg["id"]             = chave
+            msg["id"]              = chave
             msg["retorno_cliente"] = retorno
-            msg["funil_status"]   = "novo"
+            msg["funil_status"]    = "novo"
             mensagens_pendentes[chave] = msg
         notificar_equipe(nome, texto, analise["urgencia"], analise["area"], categoria, fora_horario=True)
     except Exception as e:
@@ -465,8 +559,15 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         background_tasks.add_task(processar_mensagem_fora_horario, telefone, texto, nome, foto)
         return {"status": "fora do horario - auto-resposta enviada"}
 
-    historico = buscar_historico_conversa(telefone)
-    analise   = analisar_mensagem(texto, historico=historico)
+    if not dentro_do_limite():
+        print("Limite diário Claude atingido — mensagem enfileirada sem análise.")
+        analise = {"categoria": "cliente_nossa_area", "urgencia": "media",
+                   "area": "geral", "perfil": "simples", "resposta": ""}
+        tokens_in, tokens_out, custo = 0, 0, 0.0
+    else:
+        historico = buscar_historico_conversa(telefone)
+        analise, tokens_in, tokens_out, custo = analisar_mensagem(texto, historico=historico)
+
     categoria = analise.get("categoria", "irrelevante")
 
     if categoria in ["conversa_pessoal", "irrelevante"]:
@@ -479,6 +580,8 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     }
     db_id, retorno = salvar_mensagem_db(msg)
     if db_id:
+        if custo > 0:
+            registrar_uso_claude(tokens_in, tokens_out, custo, msg_id=db_id)
         chave = str(db_id)
         msg["id"]              = chave
         msg["retorno_cliente"] = retorno
@@ -511,7 +614,10 @@ async def rejeitar(msg_id: str, request: Request):
     if msg_id not in mensagens_pendentes:
         return {"erro": "mensagem não encontrada"}
     mensagem_original = mensagens_pendentes[msg_id]["mensagem_original"]
-    nova_analise = analisar_mensagem(mensagem_original, feedback=data.get("feedback", ""))
+    nova_analise, tokens_in, tokens_out, custo = analisar_mensagem(
+        mensagem_original, feedback=data.get("feedback", ""))
+    if custo > 0:
+        registrar_uso_claude(tokens_in, tokens_out, custo, msg_id=int(msg_id))
     mensagens_pendentes[msg_id]["analise"] = nova_analise
     return {"status": "novas_opcoes", "analise": nova_analise}
 
@@ -758,18 +864,23 @@ Painel completo:
 
 # ─── CONFIGURAÇÕES ─────────────────────────────────────────────────────────────
 
+@app.get("/custo")
+async def get_custo():
+    return buscar_custo()
+
 @app.get("/config")
 async def get_configuracoes():
     return {
-        "MSG_FORA_HORARIO": get_msg_fora_horario(),
-        "HORA_INICIO":      get_config("HORA_INICIO", "8"),
-        "HORA_FIM":         get_config("HORA_FIM",    "18"),
+        "MSG_FORA_HORARIO":  get_msg_fora_horario(),
+        "HORA_INICIO":       get_config("HORA_INICIO",       "8"),
+        "HORA_FIM":          get_config("HORA_FIM",          "18"),
+        "LIMITE_DIARIO_USD": get_config("LIMITE_DIARIO_USD", "0"),
     }
 
 @app.post("/config")
 async def salvar_configuracoes(request: Request):
     data = await request.json()
-    for chave in ["MSG_FORA_HORARIO", "HORA_INICIO", "HORA_FIM"]:
+    for chave in ["MSG_FORA_HORARIO", "HORA_INICIO", "HORA_FIM", "LIMITE_DIARIO_USD"]:
         if chave in data:
             set_config(chave, str(data[chave]))
     return {"ok": True}

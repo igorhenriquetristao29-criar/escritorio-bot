@@ -88,6 +88,28 @@
         <div class="aviso" id="aviso-mensagem">Mensagem salva com sucesso!</div>
     </div>
 
+    <!-- Controle de Custo Claude -->
+    <div class="secao">
+        <h2>Limite de Gasto Diário — Claude AI</h2>
+        <p>Se o gasto do dia atingir o limite, o sistema para de chamar o Claude e enfileira as mensagens sem sugestão de resposta. Use 0 para sem limite.</p>
+
+        <label>Limite diário (em dólares)</label>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:16px;color:#555">$</span>
+            <input type="number" id="limite-diario" min="0" step="0.50" value="0" style="width:120px">
+        </div>
+        <p style="margin-top:8px;font-size:12px;color:#aaa">Exemplos: 0.50 = para quando gastar $0,50/dia · 1.00 = limite de $1/dia · 0 = sem limite</p>
+
+        <div id="custo-atual" style="margin-top:12px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:13px;color:#555;display:none">
+            <strong>Gasto de hoje:</strong> <span id="custo-hoje-val">—</span> &nbsp;|&nbsp;
+            <strong>Este mês:</strong> <span id="custo-mes-val">—</span> &nbsp;|&nbsp;
+            <strong>Total:</strong> <span id="custo-total-val">—</span>
+        </div>
+
+        <button class="btn-salvar" onclick="salvarLimite()">Salvar limite</button>
+        <div class="aviso" id="aviso-limite">Limite salvo com sucesso!</div>
+    </div>
+
 </main>
 
 <script>
@@ -106,12 +128,22 @@
         try {
             const res  = await fetch(`${API}/config`);
             const data = await res.json();
-            document.getElementById('hora-inicio').value     = data.HORA_INICIO || '8';
-            document.getElementById('hora-fim').value        = data.HORA_FIM    || '18';
+            document.getElementById('hora-inicio').value      = data.HORA_INICIO || '8';
+            document.getElementById('hora-fim').value         = data.HORA_FIM    || '18';
             document.getElementById('msg-fora-horario').value = data.MSG_FORA_HORARIO || '';
+            document.getElementById('limite-diario').value    = data.LIMITE_DIARIO_USD || '0';
         } catch (e) {
             console.error('Erro ao carregar configurações:', e);
         }
+
+        try {
+            const res2 = await fetch(`${API}/custo`);
+            const c    = await res2.json();
+            document.getElementById('custo-atual').style.display = 'block';
+            document.getElementById('custo-hoje-val').textContent  = `$${c.custo_hoje.toFixed(4)}`;
+            document.getElementById('custo-mes-val').textContent   = `$${c.custo_mes.toFixed(4)}`;
+            document.getElementById('custo-total-val').textContent = `$${c.custo_total.toFixed(4)}`;
+        } catch (e) {}
     }
 
     async function salvarHorario() {
@@ -138,6 +170,20 @@
                 body: JSON.stringify({MSG_FORA_HORARIO: msg})
             });
             mostrarAviso('aviso-mensagem');
+        } catch (e) {
+            alert('Erro ao salvar. Tente novamente.');
+        }
+    }
+
+    async function salvarLimite() {
+        const limite = document.getElementById('limite-diario').value;
+        try {
+            await fetch(`${API}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({LIMITE_DIARIO_USD: limite})
+            });
+            mostrarAviso('aviso-limite');
         } catch (e) {
             alert('Erro ao salvar. Tente novamente.');
         }
