@@ -434,14 +434,12 @@ def processar_mensagem_fora_horario(telefone, texto, nome, foto):
 
 @app.post("/login")
 async def login(request: Request):
-    data  = await request.json()
-    senha = data.get("senha", "")
-    senha_igor    = os.environ.get("SENHA_IGOR",    os.environ.get("PAINEL_SENHA", "Afra1988"))
-    senha_leticia = os.environ.get("SENHA_LETICIA", os.environ.get("PAINEL_SENHA", "Afra1988"))
-    if senha == senha_igor:
-        return {"ok": True, "usuario": "Igor"}
-    if senha == senha_leticia:
-        return {"ok": True, "usuario": "Letícia"}
+    data    = await request.json()
+    senha   = data.get("senha", "")
+    usuario = data.get("usuario", "")
+    senha_correta = os.environ.get("PAINEL_SENHA", "Afra1988")
+    if senha == senha_correta:
+        return {"ok": True, "usuario": usuario or "Equipe"}
     raise HTTPException(status_code=401, detail="Senha incorreta")
 
 @app.post("/webhook")

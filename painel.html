@@ -196,7 +196,11 @@
     <div class="login-box">
         <h2>Painel de Atendimento</h2>
         <p>Letícia Marques Advocacia</p>
-        <input type="password" id="campo-senha" placeholder="Digite sua senha"
+        <select id="campo-usuario" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:14px;outline:none;color:#333">
+            <option value="Igor">Igor</option>
+            <option value="Letícia">Letícia</option>
+        </select>
+        <input type="password" id="campo-senha" placeholder="Digite a senha"
                onkeydown="if(event.key==='Enter') entrar()">
         <button onclick="entrar()">Entrar</button>
         <div class="login-erro" id="erro-login">Senha incorreta. Tente novamente.</div>
@@ -324,14 +328,15 @@
     }
 
     async function entrar() {
-        const senha  = document.getElementById('campo-senha').value;
-        const erroEl = document.getElementById('erro-login');
+        const senha   = document.getElementById('campo-senha').value;
+        const usuario = document.getElementById('campo-usuario').value;
+        const erroEl  = document.getElementById('erro-login');
         erroEl.style.display = 'none';
         try {
             const res = await fetch(`${API}/login`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({senha})
+                body: JSON.stringify({senha, usuario})
             });
             if (res.ok) {
                 const data = await res.json();
