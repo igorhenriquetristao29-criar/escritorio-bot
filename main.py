@@ -929,6 +929,40 @@ async def db_status():
         return {"status": "erro", "erro": str(e),
                 "DATABASE_URL": os.environ.get("DATABASE_URL", "NAO_DEFINIDA")[:30]}
 
+@app.get("/diagnostico")
+async def diagnostico():
+    resultado = {}
+    try:
+        resultado["db"] = "ok"
+        conn = get_conn(); conn.close()
+    except Exception as e:
+        resultado["db"] = str(e)
+    try:
+        resultado["anthropic_key"] = "ok" if os.environ.get("ANTHROPIC_API_KEY") else "FALTANDO"
+    except:
+        resultado["anthropic_key"] = "erro"
+    try:
+        resultado["zapi_instance"] = "ok" if os.environ.get("ZAPI_INSTANCE") else "FALTANDO"
+        resultado["zapi_token"]    = "ok" if os.environ.get("ZAPI_TOKEN")    else "FALTANDO"
+        resultado["zapi_client"]   = "ok" if os.environ.get("ZAPI_CLIENT_TOKEN") else "FALTANDO"
+    except:
+        resultado["zapi"] = "erro"
+    try:
+        resultado["horario"] = dentro_do_horario()
+        resultado["limite"]  = dentro_do_limite()
+    except Exception as e:
+        resultado["horario_erro"] = str(e)
+    try:
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        r = client.messages.create(
+            model="claude-sonnet-4-6", max_tokens=10,
+            messages=[{"role":"user","content":"Responda apenas: ok"}])
+        resultado["claude"] = "ok - " + r.content[0].text.strip()
+        resultado["tokens"] = {"in": r.usage.input_tokens, "out": r.usage.output_tokens}
+    except Exception as e:
+        resultado["claude"] = "ERRO: " + str(e)
+    return resultado
+
 @app.get("/")
 async def root():
     return {"status": "servidor rodando"}
