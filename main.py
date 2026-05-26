@@ -55,6 +55,8 @@ def init_db():
         "ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS funil_status TEXT DEFAULT 'novo'",
         "ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS retorno_cliente BOOLEAN DEFAULT FALSE",
         "ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS aprovado_por TEXT",
+        "ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS respondido_em TIMESTAMP",
+        "ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS follow_up_enviado BOOLEAN DEFAULT FALSE",
     ]:
         c.execute(col_sql)
 
@@ -140,10 +142,12 @@ def atualizar_status_db(msg_id, status, resposta_enviada=None, aprovado_por=None
         conn = get_conn()
         c = conn.cursor()
         if resposta_enviada and aprovado_por:
-            c.execute('UPDATE mensagens SET status=%s, resposta_enviada=%s, aprovado_por=%s WHERE id=%s',
+            c.execute('''UPDATE mensagens SET status=%s, resposta_enviada=%s,
+                         aprovado_por=%s, respondido_em=NOW() WHERE id=%s''',
                       (status, resposta_enviada, aprovado_por, msg_id))
         elif resposta_enviada:
-            c.execute('UPDATE mensagens SET status=%s, resposta_enviada=%s WHERE id=%s',
+            c.execute('''UPDATE mensagens SET status=%s, resposta_enviada=%s,
+                         respondido_em=NOW() WHERE id=%s''',
                       (status, resposta_enviada, msg_id))
         else:
             c.execute('UPDATE mensagens SET status=%s WHERE id=%s', (status, msg_id))
@@ -889,22 +893,77 @@ Painel completo:
 async def enviar_relatorio_semanal():
     return _gerar_e_enviar_relatorio()
 
+# ─── FOLLOW-UP AUTOMÁTICO ─────────────────────────────────────────────────────
+
+def verificar_follow_ups():
+    """Envia follow-up para clientes que não responderam após X horas."""
+    try:
+        horas = int(get_config("FOLLOWUP_HORAS", "48"))
+        ativo = get_config("FOLLOWUP_ATIVO", "1")
+        if ativo != "1" or horas <= 0:
+            return
+
+        msg_followup = get_config("FOLLOWUP_MENSAGEM",
+            "Olá! Passando para saber se ficou alguma dúvida sobre o que conversamos. "
+            "Estamos à disposição para ajudar quando precisar.")
+
+        conn = get_conn()
+        c = conn.cursor()
+
+        # Busca mensagens enviadas há mais de X horas, sem follow-up ainda,
+        # e cujo cliente não enviou nova mensagem depois da resposta
+        c.execute(f'''
+            SELECT DISTINCT ON (m.telefone)
+                   m.id, m.telefone, m.nome
+            FROM mensagens m
+            WHERE m.status = 'enviado'
+              AND m.follow_up_enviado = FALSE
+              AND m.respondido_em IS NOT NULL
+              AND m.respondido_em < NOW() - INTERVAL '{horas} hours'
+              AND NOT EXISTS (
+                  SELECT 1 FROM mensagens m2
+                  WHERE m2.telefone = m.telefone
+                    AND m2.criado_em > m.respondido_em
+              )
+            ORDER BY m.telefone, m.respondido_em DESC
+        ''')
+        pendentes = c.fetchall()
+
+        for msg_id, telefone, nome in pendentes:
+            try:
+                enviar_whatsapp(telefone, msg_followup)
+                c.execute('UPDATE mensagens SET follow_up_enviado=TRUE WHERE id=%s', (msg_id,))
+                print(f"Follow-up enviado para {nome} ({telefone})")
+            except Exception as e:
+                print(f"Erro ao enviar follow-up para {telefone}: {e}")
+
+        conn.commit()
+        c.close()
+        conn.close()
+    except Exception as e:
+        print(f"Erro no verificar_follow_ups: {e}")
+
 # ─── AGENDADOR AUTOMÁTICO ─────────────────────────────────────────────────────
 
 async def agendador():
-    """Roda em background, verifica a cada 30 min se deve enviar o relatório semanal."""
+    """Roda em background: relatório semanal + follow-ups automáticos."""
     print("Agendador iniciado.")
     while True:
         try:
             brasilia = datetime.timezone(datetime.timedelta(hours=-3))
             agora    = datetime.datetime.now(brasilia)
-            # Segunda-feira (weekday=0), entre 8h e 8h30
+
+            # Relatório semanal — segunda-feira entre 8h e 8h30
             if agora.weekday() == 0 and agora.hour == 8 and agora.minute < 30:
                 hoje_str = agora.strftime("%Y-%m-%d")
-                ultimo   = get_config("ULTIMO_RELATORIO_SEMANAL", "")
-                if ultimo != hoje_str:
+                if get_config("ULTIMO_RELATORIO_SEMANAL", "") != hoje_str:
                     print("Segunda-feira 8h — enviando relatório semanal automático...")
                     _gerar_e_enviar_relatorio()
+
+            # Follow-ups — verifica sempre (só envia dentro do horário comercial)
+            if agora.weekday() < 5 and 8 <= agora.hour < 18:
+                verificar_follow_ups()
+
         except Exception as e:
             print(f"Erro no agendador: {e}")
         await asyncio.sleep(1800)  # verifica a cada 30 minutos
@@ -923,15 +982,21 @@ async def get_custo():
 async def get_configuracoes():
     return {
         "MSG_FORA_HORARIO":  get_msg_fora_horario(),
-        "HORA_INICIO":       get_config("HORA_INICIO",       "8"),
-        "HORA_FIM":          get_config("HORA_FIM",          "18"),
-        "LIMITE_DIARIO_USD": get_config("LIMITE_DIARIO_USD", "0"),
+        "HORA_INICIO":       get_config("HORA_INICIO",        "8"),
+        "HORA_FIM":          get_config("HORA_FIM",           "18"),
+        "LIMITE_DIARIO_USD": get_config("LIMITE_DIARIO_USD",  "0"),
+        "FOLLOWUP_ATIVO":    get_config("FOLLOWUP_ATIVO",     "0"),
+        "FOLLOWUP_HORAS":    get_config("FOLLOWUP_HORAS",     "48"),
+        "FOLLOWUP_MENSAGEM": get_config("FOLLOWUP_MENSAGEM",
+            "Olá! Passando para saber se ficou alguma dúvida sobre o que conversamos. "
+            "Estamos à disposição para ajudar quando precisar."),
     }
 
 @app.post("/config")
 async def salvar_configuracoes(request: Request):
     data = await request.json()
-    for chave in ["MSG_FORA_HORARIO", "HORA_INICIO", "HORA_FIM", "LIMITE_DIARIO_USD"]:
+    for chave in ["MSG_FORA_HORARIO", "HORA_INICIO", "HORA_FIM",
+                  "LIMITE_DIARIO_USD", "FOLLOWUP_ATIVO", "FOLLOWUP_HORAS", "FOLLOWUP_MENSAGEM"]:
         if chave in data:
             set_config(chave, str(data[chave]))
     return {"ok": True}

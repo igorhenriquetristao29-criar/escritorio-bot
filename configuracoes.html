@@ -88,6 +88,29 @@
         <div class="aviso" id="aviso-mensagem">Mensagem salva com sucesso!</div>
     </div>
 
+    <!-- Follow-up Automático -->
+    <div class="secao">
+        <h2>Follow-up Automático</h2>
+        <p>Quando o cliente não responder após X horas, o sistema envia automaticamente uma mensagem de acompanhamento.</p>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <label style="margin:0">Ativo</label>
+            <input type="checkbox" id="followup-ativo" style="width:18px;height:18px;cursor:pointer">
+        </div>
+
+        <label>Enviar após quantas horas sem resposta</label>
+        <div style="display:flex;align-items:center;gap:8px">
+            <input type="number" id="followup-horas" min="1" max="168" value="48" style="width:100px">
+            <span style="font-size:13px;color:#888">horas (ex: 48 = 2 dias)</span>
+        </div>
+
+        <label>Mensagem de follow-up</label>
+        <textarea id="followup-mensagem" placeholder="Mensagem enviada automaticamente ao cliente..."></textarea>
+
+        <button class="btn-salvar" onclick="salvarFollowup()">Salvar follow-up</button>
+        <div class="aviso" id="aviso-followup">Configuração salva com sucesso!</div>
+    </div>
+
     <!-- Controle de Custo Claude -->
     <div class="secao">
         <h2>Limite de Gasto Diário — Claude AI</h2>
@@ -131,7 +154,10 @@
             document.getElementById('hora-inicio').value      = data.HORA_INICIO || '8';
             document.getElementById('hora-fim').value         = data.HORA_FIM    || '18';
             document.getElementById('msg-fora-horario').value = data.MSG_FORA_HORARIO || '';
-            document.getElementById('limite-diario').value    = data.LIMITE_DIARIO_USD || '0';
+            document.getElementById('limite-diario').value      = data.LIMITE_DIARIO_USD  || '0';
+            document.getElementById('followup-ativo').checked  = data.FOLLOWUP_ATIVO    === '1';
+            document.getElementById('followup-horas').value    = data.FOLLOWUP_HORAS    || '48';
+            document.getElementById('followup-mensagem').value = data.FOLLOWUP_MENSAGEM || '';
         } catch (e) {
             console.error('Erro ao carregar configurações:', e);
         }
@@ -170,6 +196,22 @@
                 body: JSON.stringify({MSG_FORA_HORARIO: msg})
             });
             mostrarAviso('aviso-mensagem');
+        } catch (e) {
+            alert('Erro ao salvar. Tente novamente.');
+        }
+    }
+
+    async function salvarFollowup() {
+        const ativo    = document.getElementById('followup-ativo').checked ? '1' : '0';
+        const horas    = document.getElementById('followup-horas').value;
+        const mensagem = document.getElementById('followup-mensagem').value;
+        try {
+            await fetch(`${API}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({FOLLOWUP_ATIVO: ativo, FOLLOWUP_HORAS: horas, FOLLOWUP_MENSAGEM: mensagem})
+            });
+            mostrarAviso('aviso-followup');
         } catch (e) {
             alert('Erro ao salvar. Tente novamente.');
         }
