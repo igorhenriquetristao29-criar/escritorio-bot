@@ -111,6 +111,26 @@
         <div class="aviso" id="aviso-followup">Configuração salva com sucesso!</div>
     </div>
 
+    <!-- Triagem Automática -->
+    <div class="secao">
+        <h2>Triagem Automática</h2>
+        <p>Quando ativada, o sistema pergunta o nome e a situação ao cliente novo antes de criar o card no painel — garantindo informações mínimas de cada contato.</p>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <label style="margin:0">Ativa</label>
+            <input type="checkbox" id="triagem-ativa" style="width:18px;height:18px;cursor:pointer">
+        </div>
+
+        <label>Mensagem de boas-vindas (pede o nome)</label>
+        <textarea id="triagem-msg-nome" placeholder="Ex: Olá! Bem-vindo ao escritório..."></textarea>
+
+        <label>Mensagem de acompanhamento (pede a situação)</label>
+        <textarea id="triagem-msg-situacao" placeholder="Ex: Obrigado! Pode descrever brevemente sua situação?"></textarea>
+
+        <button class="btn-salvar" onclick="salvarTriagem()">Salvar triagem</button>
+        <div class="aviso" id="aviso-triagem">Configuração salva com sucesso!</div>
+    </div>
+
     <!-- Controle de Custo Claude -->
     <div class="secao">
         <h2>Limite de Gasto Diário — Claude AI</h2>
@@ -158,6 +178,9 @@
             document.getElementById('followup-ativo').checked  = data.FOLLOWUP_ATIVO    === '1';
             document.getElementById('followup-horas').value    = data.FOLLOWUP_HORAS    || '48';
             document.getElementById('followup-mensagem').value = data.FOLLOWUP_MENSAGEM || '';
+            document.getElementById('triagem-ativa').checked       = data.TRIAGEM_ATIVA       !== '0';
+            document.getElementById('triagem-msg-nome').value      = data.TRIAGEM_MSG_NOME     || '';
+            document.getElementById('triagem-msg-situacao').value  = data.TRIAGEM_MSG_SITUACAO || '';
         } catch (e) {
             console.error('Erro ao carregar configurações:', e);
         }
@@ -212,6 +235,22 @@
                 body: JSON.stringify({FOLLOWUP_ATIVO: ativo, FOLLOWUP_HORAS: horas, FOLLOWUP_MENSAGEM: mensagem})
             });
             mostrarAviso('aviso-followup');
+        } catch (e) {
+            alert('Erro ao salvar. Tente novamente.');
+        }
+    }
+
+    async function salvarTriagem() {
+        const ativo    = document.getElementById('triagem-ativa').checked ? '1' : '0';
+        const msgNome  = document.getElementById('triagem-msg-nome').value;
+        const msgSit   = document.getElementById('triagem-msg-situacao').value;
+        try {
+            await fetch(`${API}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({TRIAGEM_ATIVA: ativo, TRIAGEM_MSG_NOME: msgNome, TRIAGEM_MSG_SITUACAO: msgSit})
+            });
+            mostrarAviso('aviso-triagem');
         } catch (e) {
             alert('Erro ao salvar. Tente novamente.');
         }

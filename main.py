@@ -11,6 +11,7 @@ app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 mensagens_pendentes = {}
+triagem_pendente    = {}   # { telefone: {stage, nome, foto, criado_em, primeiro_texto} }
 IGOR    = "5564981475621"
 LETICIA = "5564981177107"
 API_BASE = "https://web-production-3c5ee.up.railway.app"
@@ -533,6 +534,32 @@ def processar_mensagem_fora_horario(telefone, texto, nome, foto):
     except Exception as e:
         print(f"Erro ao processar fora do horário: {e}")
 
+# ─── TRIAGEM AUTOMÁTICA ────────────────────────────────────────────────────────
+
+def limpar_triagens_expiradas():
+    """Remove estados de triagem com mais de 2 horas (evita memória infinita)."""
+    brasilia  = datetime.timezone(datetime.timedelta(hours=-3))
+    agora     = datetime.datetime.now(brasilia)
+    expirados = [tel for tel, d in list(triagem_pendente.items())
+                 if (agora - d["criado_em"]).total_seconds() > 7200]
+    for tel in expirados:
+        del triagem_pendente[tel]
+        print(f"Triagem expirada removida: {tel}")
+
+def is_primeiro_contato(telefone):
+    """True se o telefone nunca enviou mensagem ao escritório antes."""
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('SELECT COUNT(*) FROM mensagens WHERE telefone=%s', (telefone,))
+        count = c.fetchone()[0]
+        c.close()
+        conn.close()
+        return count == 0
+    except Exception as e:
+        print(f"Erro is_primeiro_contato: {e}")
+        return False
+
 # ─── ROTAS ────────────────────────────────────────────────────────────────────
 
 @app.post("/login")
@@ -568,6 +595,54 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
             enviar_whatsapp(telefone, get_msg_fora_horario())
             background_tasks.add_task(processar_mensagem_fora_horario, telefone, texto, nome, foto)
             return {"status": "fora do horario - auto-resposta enviada"}
+
+        # ── TRIAGEM AUTOMÁTICA (somente dentro do horário) ─────────────────────
+        triagem_ativa = get_config("TRIAGEM_ATIVA", "1") == "1"
+        if triagem_ativa:
+            limpar_triagens_expiradas()
+
+            if telefone in triagem_pendente:
+                estado = triagem_pendente[telefone]
+
+                if estado["stage"] == "nome":
+                    nome_informado = texto.strip()
+                    if len(nome_informado) < 2 or len(nome_informado) > 80:
+                        enviar_whatsapp(telefone,
+                            "Não consegui identificar. Pode digitar apenas seu nome, por favor?")
+                        return {"status": "triagem - aguardando nome novamente"}
+                    triagem_pendente[telefone]["nome"]  = nome_informado
+                    triagem_pendente[telefone]["stage"] = "situacao"
+                    msg_sit = get_config("TRIAGEM_MSG_SITUACAO",
+                        "Obrigado! Pode descrever brevemente sua situação ou dúvida jurídica?")
+                    enviar_whatsapp(telefone, msg_sit)
+                    return {"status": "triagem - aguardando situacao"}
+
+                elif estado["stage"] == "situacao":
+                    nome_informado = estado.get("nome", nome)
+                    foto_salva     = estado.get("foto",  foto)
+                    primeiro_texto = estado.get("primeiro_texto", "")
+                    del triagem_pendente[telefone]
+                    # Atualiza as variáveis locais para o processamento normal abaixo
+                    nome  = nome_informado
+                    foto  = foto_salva
+                    texto = f"{primeiro_texto}\n{texto}".strip() if primeiro_texto else texto
+                    # → continua para processamento normal sem return
+
+            elif is_primeiro_contato(telefone):
+                brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+                agora    = datetime.datetime.now(brasilia)
+                triagem_pendente[telefone] = {
+                    "stage":          "nome",
+                    "foto":           foto,
+                    "criado_em":      agora,
+                    "primeiro_texto": texto,
+                }
+                msg_nome = get_config("TRIAGEM_MSG_NOME",
+                    "Olá! Bem-vindo ao escritório Letícia Marques Advocacia. "
+                    "Para que possamos atendê-lo melhor, poderia nos informar seu nome?")
+                enviar_whatsapp(telefone, msg_nome)
+                return {"status": "triagem - aguardando nome"}
+        # ── FIM TRIAGEM ─────────────────────────────────────────────────────────
 
         if not dentro_do_limite():
             print("Limite diário Claude atingido — mensagem enfileirada sem análise.")
@@ -981,22 +1056,29 @@ async def get_custo():
 @app.get("/config")
 async def get_configuracoes():
     return {
-        "MSG_FORA_HORARIO":  get_msg_fora_horario(),
-        "HORA_INICIO":       get_config("HORA_INICIO",        "8"),
-        "HORA_FIM":          get_config("HORA_FIM",           "18"),
-        "LIMITE_DIARIO_USD": get_config("LIMITE_DIARIO_USD",  "0"),
-        "FOLLOWUP_ATIVO":    get_config("FOLLOWUP_ATIVO",     "0"),
-        "FOLLOWUP_HORAS":    get_config("FOLLOWUP_HORAS",     "48"),
-        "FOLLOWUP_MENSAGEM": get_config("FOLLOWUP_MENSAGEM",
+        "MSG_FORA_HORARIO":    get_msg_fora_horario(),
+        "HORA_INICIO":         get_config("HORA_INICIO",        "8"),
+        "HORA_FIM":            get_config("HORA_FIM",           "18"),
+        "LIMITE_DIARIO_USD":   get_config("LIMITE_DIARIO_USD",  "0"),
+        "FOLLOWUP_ATIVO":      get_config("FOLLOWUP_ATIVO",     "0"),
+        "FOLLOWUP_HORAS":      get_config("FOLLOWUP_HORAS",     "48"),
+        "FOLLOWUP_MENSAGEM":   get_config("FOLLOWUP_MENSAGEM",
             "Olá! Passando para saber se ficou alguma dúvida sobre o que conversamos. "
             "Estamos à disposição para ajudar quando precisar."),
+        "TRIAGEM_ATIVA":       get_config("TRIAGEM_ATIVA",      "1"),
+        "TRIAGEM_MSG_NOME":    get_config("TRIAGEM_MSG_NOME",
+            "Olá! Bem-vindo ao escritório Letícia Marques Advocacia. "
+            "Para que possamos atendê-lo melhor, poderia nos informar seu nome?"),
+        "TRIAGEM_MSG_SITUACAO": get_config("TRIAGEM_MSG_SITUACAO",
+            "Obrigado! Pode descrever brevemente sua situação ou dúvida jurídica?"),
     }
 
 @app.post("/config")
 async def salvar_configuracoes(request: Request):
     data = await request.json()
     for chave in ["MSG_FORA_HORARIO", "HORA_INICIO", "HORA_FIM",
-                  "LIMITE_DIARIO_USD", "FOLLOWUP_ATIVO", "FOLLOWUP_HORAS", "FOLLOWUP_MENSAGEM"]:
+                  "LIMITE_DIARIO_USD", "FOLLOWUP_ATIVO", "FOLLOWUP_HORAS", "FOLLOWUP_MENSAGEM",
+                  "TRIAGEM_ATIVA", "TRIAGEM_MSG_NOME", "TRIAGEM_MSG_SITUACAO"]:
         if chave in data:
             set_config(chave, str(data[chave]))
     return {"ok": True}
