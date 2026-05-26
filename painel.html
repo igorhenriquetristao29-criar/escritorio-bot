@@ -87,6 +87,13 @@
         .aviso-fora-area { background: #e8f4fd; border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #004085; font-size: 13px; }
         .aviso-fora-horario { background: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; padding: 10px; margin-bottom: 12px; color: #856404; font-size: 13px; }
 
+        /* ── TEMPO DE ESPERA ── */
+        .tempo-espera { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+        .tempo-verde   { background: #d4edda; color: #155724; }
+        .tempo-amarelo { background: #fff3cd; color: #856404; }
+        .tempo-vermelho { background: #ffe0e0; color: #c0392b; animation: piscar 1.5s infinite; }
+        @keyframes piscar { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+
         /* ── FUNIL ── */
         .funil-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: #555; }
         .funil-row select { padding: 4px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; cursor: pointer; }
@@ -386,6 +393,29 @@
         } catch (e) {}
     }
 
+    // ── TEMPO DE ESPERA ──────────────────────────────────────────────────────
+    function calcularTempo(criado_em) {
+        if (!criado_em) return null;
+        const agora   = new Date();
+        const criado  = new Date(criado_em.replace(' ', 'T') + '-03:00');
+        const diffMin = Math.floor((agora - criado) / 60000);
+        if (isNaN(diffMin) || diffMin < 0) return null;
+        let texto, classe;
+        if (diffMin < 60) {
+            texto  = diffMin <= 1 ? 'Agora mesmo' : `${diffMin} min atrás`;
+            classe = 'tempo-verde';
+        } else if (diffMin < 240) {
+            const h = Math.floor(diffMin / 60), m = diffMin % 60;
+            texto  = m > 0 ? `${h}h ${m}min atrás` : `${h}h atrás`;
+            classe = 'tempo-amarelo';
+        } else {
+            const h = Math.floor(diffMin / 60);
+            texto  = h < 24 ? `${h}h atrás — RESPONDER URGENTE` : `${Math.floor(h/24)}d atrás — RESPONDER URGENTE`;
+            classe = 'tempo-vermelho';
+        }
+        return `<span class="tempo-espera ${classe}">⏱ ${texto}</span>`;
+    }
+
     // ── FILTROS ───────────────────────────────────────────────────────────────
     function filtrar(area) {
         filtroAtual = area;
@@ -457,6 +487,8 @@
                 `<option value="${o.value}" ${funilAtual===o.value?'selected':''}>${o.label}</option>`
             ).join('');
 
+            const tempoHtml = calcularTempo(m.criado_em) || '';
+
             return `
             <div class="card ${cardClass}" id="card-${mid}" data-id="${mid}">
                 <div class="cliente-info">
@@ -466,6 +498,7 @@
                         <div class="cliente-tel">${m.telefone}</div>
                     </div>
                 </div>
+                ${tempoHtml}
                 <div class="mensagem-original">"${m.mensagem_original}"</div>
                 <div class="badges">
                     <span class="badge ${categoria}">${foraArea ? 'FORA DA ÁREA' : 'NOSSA ÁREA'}</span>
@@ -871,6 +904,19 @@
     setInterval(() => {
         if (localStorage.getItem('painel_logado') === '1' && !temDigitacaoAtiva()) carregar();
     }, 30000);
+
+    // Atualiza o tempo de espera a cada minuto sem recarregar dados
+    setInterval(() => {
+        if (localStorage.getItem('painel_logado') !== '1') return;
+        dadosTodos.forEach(m => {
+            const mid = m.id || m.telefone;
+            const el  = document.querySelector(`#card-${mid} .tempo-espera`);
+            if (el) {
+                const novo = calcularTempo(m.criado_em);
+                if (novo) el.outerHTML = novo;
+            }
+        });
+    }, 60000);
 </script>
 </body>
 </html>

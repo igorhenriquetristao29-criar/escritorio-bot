@@ -159,7 +159,8 @@ def carregar_pendentes_do_db():
         c = conn.cursor()
         c.execute('''
             SELECT id, telefone, nome, foto, mensagem_original, urgencia, area, categoria,
-                   resposta_sugerida, fora_horario, funil_status, retorno_cliente
+                   resposta_sugerida, fora_horario, funil_status, retorno_cliente,
+                   TO_CHAR(criado_em - INTERVAL '3 hours', 'YYYY-MM-DD HH24:MI:SS')
             FROM mensagens WHERE status='pendente' ORDER BY criado_em ASC
         ''')
         rows = c.fetchall()
@@ -167,7 +168,7 @@ def carregar_pendentes_do_db():
         conn.close()
         for row in rows:
             db_id, telefone, nome, foto, msg_original, urgencia, area, categoria, \
-                resposta, fora_h, funil, retorno = row
+                resposta, fora_h, funil, retorno, criado_em = row
             chave = str(db_id)
             mensagens_pendentes[chave] = {
                 "id": chave, "telefone": telefone,
@@ -179,9 +180,10 @@ def carregar_pendentes_do_db():
                     "area":      area      or "geral",
                     "resposta":  resposta  or ""
                 },
-                "fora_horario":   bool(fora_h),
-                "funil_status":   funil or "novo",
+                "fora_horario":    bool(fora_h),
+                "funil_status":    funil or "novo",
                 "retorno_cliente": bool(retorno),
+                "criado_em":       criado_em or "",
                 "status": "pendente"
             }
         print(f"Banco carregado: {len(rows)} pendentes restauradas.")
@@ -515,10 +517,13 @@ def processar_mensagem_fora_horario(telefone, texto, nome, foto):
         if db_id:
             if custo > 0:
                 registrar_uso_claude(tokens_in, tokens_out, custo, msg_id=db_id)
+            brasilia  = datetime.timezone(datetime.timedelta(hours=-3))
+            agora_str = datetime.datetime.now(brasilia).strftime('%Y-%m-%d %H:%M:%S')
             chave = str(db_id)
             msg["id"]              = chave
             msg["retorno_cliente"] = retorno
             msg["funil_status"]    = "novo"
+            msg["criado_em"]       = agora_str
             mensagens_pendentes[chave] = msg
         notificar_equipe(nome, texto, analise["urgencia"], analise["area"], categoria, fora_horario=True)
     except Exception as e:
@@ -583,10 +588,13 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         if db_id:
             if custo > 0:
                 registrar_uso_claude(tokens_in, tokens_out, custo, msg_id=db_id)
+            brasilia  = datetime.timezone(datetime.timedelta(hours=-3))
+            agora_str = datetime.datetime.now(brasilia).strftime('%Y-%m-%d %H:%M:%S')
             chave = str(db_id)
             msg["id"]              = chave
             msg["retorno_cliente"] = retorno
             msg["funil_status"]    = "novo"
+            msg["criado_em"]       = agora_str
             mensagens_pendentes[chave] = msg
 
         try:
