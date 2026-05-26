@@ -100,6 +100,22 @@ def init_db():
         criado_em     TIMESTAMP DEFAULT NOW()
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS prazos (
+        id                 SERIAL PRIMARY KEY,
+        processo           TEXT,
+        cliente            TEXT NOT NULL,
+        tipo               TEXT,
+        descricao          TEXT,
+        data_prazo         DATE NOT NULL,
+        responsavel        TEXT DEFAULT 'Equipe',
+        alerta_7d_enviado  BOOLEAN DEFAULT FALSE,
+        alerta_3d_enviado  BOOLEAN DEFAULT FALSE,
+        alerta_1d_enviado  BOOLEAN DEFAULT FALSE,
+        alerta_dia_enviado BOOLEAN DEFAULT FALSE,
+        ativo              BOOLEAN DEFAULT TRUE,
+        criado_em          TIMESTAMP DEFAULT NOW()
+    )''')
+
     conn.commit()
     c.close()
     conn.close()
@@ -875,6 +891,79 @@ async def deletar_lembrete(lembrete_id: int):
     except Exception as e:
         return {"erro": str(e)}
 
+# ─── PRAZOS JUDICIAIS ─────────────────────────────────────────────────────────
+
+@app.get("/prazos-lista")
+async def listar_prazos():
+    try:
+        brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+        hoje     = datetime.datetime.now(brasilia).date()
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''
+            SELECT id, processo, cliente, tipo, descricao,
+                   data_prazo::text, responsavel,
+                   TO_CHAR(criado_em - INTERVAL '3 hours','DD/MM/YYYY')
+            FROM prazos
+            WHERE ativo = TRUE
+            ORDER BY data_prazo ASC
+        ''')
+        rows = c.fetchall()
+        c.close()
+        conn.close()
+        result = []
+        for r in rows:
+            data_prazo = datetime.date.fromisoformat(r[5])
+            dias = (data_prazo - hoje).days
+            result.append({
+                "id": r[0], "processo": r[1] or "", "cliente": r[2],
+                "tipo": r[3] or "", "descricao": r[4] or "",
+                "data_prazo": r[5], "responsavel": r[6] or "Equipe",
+                "criado_em": r[7], "dias_restantes": dias
+            })
+        return result
+    except Exception as e:
+        print(f"Erro ao listar prazos: {e}")
+        return []
+
+@app.post("/prazos")
+async def criar_prazo(request: Request):
+    data = await request.json()
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO prazos (processo, cliente, tipo, descricao, data_prazo, responsavel)
+            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id
+        ''', (data.get("processo",""), data.get("cliente",""), data.get("tipo",""),
+              data.get("descricao",""), data.get("data_prazo"), data.get("responsavel","Equipe")))
+        new_id = c.fetchone()[0]
+        conn.commit()
+        c.close()
+        conn.close()
+        return {"ok": True, "id": new_id}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.delete("/prazos/{prazo_id}")
+async def deletar_prazo(prazo_id: int):
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('UPDATE prazos SET ativo=FALSE WHERE id=%s', (prazo_id,))
+        conn.commit()
+        c.close()
+        conn.close()
+        return {"ok": True}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.post("/prazos/testar-alertas")
+async def testar_alertas_prazos():
+    """Dispara verificação manual de prazos (para teste)."""
+    verificar_prazos()
+    return {"ok": True, "msg": "Verificação executada"}
+
 # ─── EXPORTAR CSV ─────────────────────────────────────────────────────────────
 
 @app.get("/exportar-csv")
@@ -1018,6 +1107,68 @@ def verificar_follow_ups():
     except Exception as e:
         print(f"Erro no verificar_follow_ups: {e}")
 
+# ─── ALERTAS DE PRAZO JUDICIAL ────────────────────────────────────────────────
+
+def verificar_prazos():
+    """Envia alertas de prazo judicial por WhatsApp (7d, 3d, 1d e no dia)."""
+    try:
+        brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+        hoje     = datetime.datetime.now(brasilia).date()
+
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''
+            SELECT id, processo, cliente, tipo, descricao, data_prazo, responsavel,
+                   alerta_7d_enviado, alerta_3d_enviado, alerta_1d_enviado, alerta_dia_enviado
+            FROM prazos
+            WHERE ativo = TRUE AND data_prazo >= %s
+            ORDER BY data_prazo ASC
+        ''', (hoje,))
+        prazos = c.fetchall()
+
+        instance     = os.environ.get("ZAPI_INSTANCE", "")
+        token        = os.environ.get("ZAPI_TOKEN", "")
+        client_token = os.environ.get("ZAPI_CLIENT_TOKEN", "")
+        url     = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
+        headers = {"Client-Token": client_token}
+
+        for row in prazos:
+            (pid, processo, cliente, tipo, descricao,
+             data_prazo, responsavel, a7, a3, a1, adia) = row
+            dias = (data_prazo - hoje).days
+
+            alerta = None
+            campo  = None
+
+            if dias == 0 and not adia:
+                alerta = f"PRAZO HOJE - {tipo or 'Judicial'}\n\nProcesso: {processo or 'N/I'}\nCliente: {cliente}\nDescrição: {descricao or ''}\nResponsável: {responsavel}"
+                campo  = "alerta_dia_enviado"
+            elif dias == 1 and not a1:
+                alerta = f"PRAZO AMANHA - {tipo or 'Judicial'}\n\nProcesso: {processo or 'N/I'}\nCliente: {cliente}\nDescrição: {descricao or ''}\nResponsável: {responsavel}"
+                campo  = "alerta_1d_enviado"
+            elif dias == 3 and not a3:
+                alerta = f"Prazo em 3 dias - {tipo or 'Judicial'}\n\nProcesso: {processo or 'N/I'}\nCliente: {cliente}\nDescrição: {descricao or ''}\nResponsável: {responsavel}"
+                campo  = "alerta_3d_enviado"
+            elif dias == 7 and not a7:
+                alerta = f"Prazo em 7 dias - {tipo or 'Judicial'}\n\nProcesso: {processo or 'N/I'}\nCliente: {cliente}\nDescrição: {descricao or ''}\nResponsável: {responsavel}"
+                campo  = "alerta_7d_enviado"
+
+            if alerta and campo:
+                for numero in [IGOR, LETICIA]:
+                    try:
+                        requests.post(url, json={"phone": numero, "message": alerta},
+                                      headers=headers, timeout=10)
+                    except Exception as e:
+                        print(f"Erro ao enviar alerta prazo para {numero}: {e}")
+                c.execute(f'UPDATE prazos SET {campo}=TRUE WHERE id=%s', (pid,))
+                print(f"Alerta de prazo enviado: {cliente} — {dias} dia(s)")
+
+        conn.commit()
+        c.close()
+        conn.close()
+    except Exception as e:
+        print(f"Erro em verificar_prazos: {e}")
+
 # ─── AGENDADOR AUTOMÁTICO ─────────────────────────────────────────────────────
 
 async def agendador():
@@ -1038,6 +1189,14 @@ async def agendador():
             # Follow-ups — verifica sempre (só envia dentro do horário comercial)
             if agora.weekday() < 5 and 8 <= agora.hour < 18:
                 verificar_follow_ups()
+
+            # Alertas de prazo judicial — uma vez ao dia, às 8h
+            if agora.weekday() < 5 and 8 <= agora.hour < 9:
+                hoje_str = agora.strftime("%Y-%m-%d")
+                if get_config("ULTIMA_VERIFICACAO_PRAZOS", "") != hoje_str:
+                    print("Verificando alertas de prazo judicial...")
+                    verificar_prazos()
+                    set_config("ULTIMA_VERIFICACAO_PRAZOS", hoje_str)
 
         except Exception as e:
             print(f"Erro no agendador: {e}")
@@ -1096,6 +1255,10 @@ async def painel():
 @app.get("/relatorios")
 async def relatorios_page():
     return FileResponse("relatorios.html")
+
+@app.get("/prazos")
+async def prazos_page():
+    return FileResponse("prazos.html")
 
 @app.get("/configuracoes")
 async def configuracoes_page():

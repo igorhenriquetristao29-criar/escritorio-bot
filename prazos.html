@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prazos Judiciais — Letícia Marques Advocacia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+
+        header {
+            background: #1a1a2e; color: white; padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        header h1 { font-size: 20px; }
+        .header-links { display: flex; gap: 12px; align-items: center; }
+        .header-links a {
+            color: #adb5bd; text-decoration: none; font-size: 13px;
+            padding: 6px 12px; border-radius: 6px; border: 1px solid #495057;
+        }
+        .header-links a:hover { background: #343a40; color: white; }
+        .btn-sair {
+            background: none; border: 1px solid #dc3545; color: #dc3545;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-sair:hover { background: #dc3545; color: white; }
+
+        main { padding: 24px; max-width: 1000px; margin: 0 auto; }
+
+        /* ── CARDS RESUMO ── */
+        .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 16px; margin-bottom: 28px; }
+        .card-resumo {
+            background: white; border-radius: 12px; padding: 18px; text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .card-resumo .numero { font-size: 34px; font-weight: bold; color: #1a1a2e; }
+        .card-resumo .label  { font-size: 12px; color: #888; margin-top: 4px; }
+        .card-resumo.vermelho .numero { color: #dc3545; }
+        .card-resumo.laranja .numero  { color: #fd7e14; }
+        .card-resumo.amarelo .numero  { color: #ffc107; }
+        .card-resumo.verde .numero    { color: #28a745; }
+
+        /* ── FORMULÁRIO ── */
+        .secao {
+            background: white; border-radius: 12px; padding: 24px;
+            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .secao h2 { font-size: 16px; color: #333; margin-bottom: 16px;
+                    padding-bottom: 10px; border-bottom: 1px solid #eee; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .form-grid .full { grid-column: 1 / -1; }
+
+        label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
+        input[type="text"], input[type="date"], select, textarea {
+            width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px;
+            font-size: 13px; font-family: Arial, sans-serif; outline: none;
+        }
+        input:focus, select:focus, textarea:focus { border-color: #007bff; }
+        textarea { min-height: 70px; resize: vertical; }
+
+        .btn-add {
+            margin-top: 16px; padding: 10px 28px; background: #1a1a2e; color: white;
+            border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;
+        }
+        .btn-add:hover { background: #2d2d4e; }
+
+        /* ── TABELA ── */
+        .tabela-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8f9fa; padding: 10px 12px; text-align: left;
+             color: #555; font-weight: bold; border-bottom: 2px solid #dee2e6; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; color: #333; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8f9fa; }
+        .sem-dados { text-align: center; color: #aaa; padding: 40px; font-size: 14px; }
+
+        /* ── BADGES DIAS ── */
+        .badge-dias {
+            display: inline-block; padding: 4px 10px; border-radius: 20px;
+            font-size: 12px; font-weight: bold; white-space: nowrap;
+        }
+        .badge-hoje    { background: #ffe0e0; color: #c0392b; animation: pulsar 1.2s infinite; }
+        .badge-amanha  { background: #ffe0e0; color: #c0392b; }
+        .badge-urgente { background: #ffe8d6; color: #9c4a00; }
+        .badge-semana  { background: #fff8cc; color: #7a6000; }
+        .badge-ok      { background: #d4edda; color: #155724; }
+        .badge-vencido { background: #e9ecef; color: #6c757d; text-decoration: line-through; }
+
+        @keyframes pulsar { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+        .btn-excluir {
+            background: none; border: 1px solid #dc3545; color: #dc3545;
+            padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+        .btn-excluir:hover { background: #dc3545; color: white; }
+
+        .btn-testar {
+            padding: 7px 16px; background: #6c757d; color: white; border: none;
+            border-radius: 7px; cursor: pointer; font-size: 12px; margin-left: 10px;
+        }
+        .btn-testar:hover { background: #5a6268; }
+
+        .aviso { background: #d4edda; color: #155724; padding: 10px 14px;
+                 border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+
+        .linha-vencida td { opacity: 0.55; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Prazos Judiciais</h1>
+    <div class="header-links">
+        <a href="/painel">Painel</a>
+        <a href="/relatorios">Relatórios</a>
+        <a href="/configuracoes">Configurações</a>
+        <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+</header>
+
+<main>
+
+    <!-- Resumo -->
+    <div class="resumo">
+        <div class="card-resumo vermelho">
+            <div class="numero" id="cnt-hoje">—</div>
+            <div class="label">Prazo hoje</div>
+        </div>
+        <div class="card-resumo laranja">
+            <div class="numero" id="cnt-urgente">—</div>
+            <div class="label">Até 3 dias</div>
+        </div>
+        <div class="card-resumo amarelo">
+            <div class="numero" id="cnt-semana">—</div>
+            <div class="label">Esta semana</div>
+        </div>
+        <div class="card-resumo verde">
+            <div class="numero" id="cnt-total">—</div>
+            <div class="label">Total ativos</div>
+        </div>
+    </div>
+
+    <!-- Formulário -->
+    <div class="secao">
+        <h2>Cadastrar Novo Prazo</h2>
+        <div class="form-grid">
+            <div>
+                <label>Número do Processo</label>
+                <input type="text" id="f-processo" placeholder="Ex: 0001234-56.2024.8.09.0001">
+            </div>
+            <div>
+                <label>Cliente *</label>
+                <input type="text" id="f-cliente" placeholder="Nome do cliente">
+            </div>
+            <div>
+                <label>Tipo de Prazo *</label>
+                <select id="f-tipo">
+                    <option value="">Selecione...</option>
+                    <option>Contestação</option>
+                    <option>Recurso</option>
+                    <option>Manifestação</option>
+                    <option>Petição</option>
+                    <option>Audiência</option>
+                    <option>Juntada de documentos</option>
+                    <option>Impugnação</option>
+                    <option>Réplica</option>
+                    <option>Outros</option>
+                </select>
+            </div>
+            <div>
+                <label>Data do Prazo *</label>
+                <input type="date" id="f-data">
+            </div>
+            <div>
+                <label>Responsável</label>
+                <select id="f-responsavel">
+                    <option value="Equipe">Equipe</option>
+                    <option value="Letícia">Letícia</option>
+                    <option value="Igor">Igor</option>
+                </select>
+            </div>
+            <div class="full">
+                <label>Descrição / Observação</label>
+                <textarea id="f-descricao" placeholder="Detalhes adicionais sobre o prazo..."></textarea>
+            </div>
+        </div>
+        <button class="btn-add" onclick="cadastrar()">Cadastrar Prazo</button>
+        <div class="aviso" id="aviso-cadastro">Prazo cadastrado com sucesso! Alertas serão enviados automaticamente.</div>
+    </div>
+
+    <!-- Tabela de prazos -->
+    <div class="secao">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee">
+            <h2 style="margin:0;border:none;padding:0">Prazos Ativos</h2>
+            <div>
+                <button class="btn-add" style="margin:0;padding:7px 16px;font-size:13px" onclick="carregar()">Atualizar</button>
+                <button class="btn-testar" onclick="testarAlertas()">Testar alertas agora</button>
+            </div>
+        </div>
+        <div class="tabela-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dias</th>
+                        <th>Data</th>
+                        <th>Cliente</th>
+                        <th>Processo</th>
+                        <th>Tipo</th>
+                        <th>Descrição</th>
+                        <th>Responsável</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-prazos">
+                    <tr><td colspan="8" class="sem-dados">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    const API = 'https://web-production-3c5ee.up.railway.app';
+
+    if (localStorage.getItem('painel_logado') !== '1') {
+        window.location.href = '/painel';
+    }
+
+    function sair() {
+        localStorage.removeItem('painel_logado');
+        window.location.href = '/painel';
+    }
+
+    function badgeDias(dias) {
+        if (dias < 0)  return `<span class="badge-dias badge-vencido">Vencido há ${Math.abs(dias)}d</span>`;
+        if (dias === 0) return `<span class="badge-dias badge-hoje">HOJE</span>`;
+        if (dias === 1) return `<span class="badge-dias badge-amanha">Amanhã</span>`;
+        if (dias <= 3)  return `<span class="badge-dias badge-urgente">Em ${dias} dias</span>`;
+        if (dias <= 7)  return `<span class="badge-dias badge-semana">Em ${dias} dias</span>`;
+        return `<span class="badge-dias badge-ok">Em ${dias} dias</span>`;
+    }
+
+    function formatarData(dateStr) {
+        if (!dateStr) return '—';
+        const [ano, mes, dia] = dateStr.split('-');
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    async function carregar() {
+        try {
+            const res   = await fetch(`${API}/prazos-lista`);
+            const lista = await res.json();
+
+            // Atualiza contadores
+            const hoje    = lista.filter(p => p.dias_restantes === 0).length;
+            const urgente = lista.filter(p => p.dias_restantes >= 0 && p.dias_restantes <= 3).length;
+            const semana  = lista.filter(p => p.dias_restantes >= 0 && p.dias_restantes <= 7).length;
+            document.getElementById('cnt-hoje').textContent    = hoje;
+            document.getElementById('cnt-urgente').textContent = urgente;
+            document.getElementById('cnt-semana').textContent  = semana;
+            document.getElementById('cnt-total').textContent   = lista.filter(p => p.dias_restantes >= 0).length;
+
+            const tbody = document.getElementById('tabela-prazos');
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="sem-dados">Nenhum prazo cadastrado ainda.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = lista.map(p => `
+                <tr class="${p.dias_restantes < 0 ? 'linha-vencida' : ''}">
+                    <td>${badgeDias(p.dias_restantes)}</td>
+                    <td><strong>${formatarData(p.data_prazo)}</strong></td>
+                    <td>${p.cliente}</td>
+                    <td style="font-size:11px;color:#666">${p.processo || '—'}</td>
+                    <td>${p.tipo || '—'}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(p.descricao||'').replace(/"/g,'&quot;')}">${p.descricao || '—'}</td>
+                    <td>${p.responsavel}</td>
+                    <td><button class="btn-excluir" onclick="excluir(${p.id})">Excluir</button></td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error('Erro ao carregar prazos:', e);
+        }
+    }
+
+    async function cadastrar() {
+        const cliente = document.getElementById('f-cliente').value.trim();
+        const tipo    = document.getElementById('f-tipo').value;
+        const data    = document.getElementById('f-data').value;
+
+        if (!cliente || !tipo || !data) {
+            alert('Preencha pelo menos: Cliente, Tipo e Data do Prazo.');
+            return;
+        }
+
+        const body = {
+            processo:    document.getElementById('f-processo').value.trim(),
+            cliente,
+            tipo,
+            descricao:   document.getElementById('f-descricao').value.trim(),
+            data_prazo:  data,
+            responsavel: document.getElementById('f-responsavel').value,
+        };
+
+        try {
+            const res = await fetch(`${API}/prazos`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            const r = await res.json();
+            if (r.ok) {
+                // Limpa formulário
+                ['f-processo','f-cliente','f-descricao','f-data'].forEach(id =>
+                    document.getElementById(id).value = '');
+                document.getElementById('f-tipo').value = '';
+                document.getElementById('f-responsavel').value = 'Equipe';
+
+                const aviso = document.getElementById('aviso-cadastro');
+                aviso.style.display = 'block';
+                setTimeout(() => aviso.style.display = 'none', 4000);
+                carregar();
+            } else {
+                alert('Erro ao cadastrar: ' + (r.erro || 'desconhecido'));
+            }
+        } catch (e) {
+            alert('Erro de conexão. Tente novamente.');
+        }
+    }
+
+    async function excluir(id) {
+        if (!confirm('Remover este prazo da lista?')) return;
+        try {
+            await fetch(`${API}/prazos/${id}`, { method: 'DELETE' });
+            carregar();
+        } catch (e) {
+            alert('Erro ao excluir.');
+        }
+    }
+
+    async function testarAlertas() {
+        if (!confirm('Disparar verificação de alertas agora? (envia WhatsApp se houver prazos no prazo de alerta)')) return;
+        try {
+            await fetch(`${API}/prazos/testar-alertas`, { method: 'POST' });
+            alert('Verificação executada! Verifique o WhatsApp.');
+        } catch (e) {
+            alert('Erro ao executar.');
+        }
+    }
+
+    carregar();
+</script>
+</body>
+</html>
