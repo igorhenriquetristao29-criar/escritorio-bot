@@ -1716,7 +1716,99 @@ async def salvar_configuracoes(request: Request):
 async def relatorios_dados():
     return buscar_relatorios()
 
+@app.get("/dashboard-dados")
+async def dashboard_dados():
+    try:
+        brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+        agora    = datetime.datetime.now(brasilia)
+        hoje     = agora.date()
+        fim_semana = hoje + datetime.timedelta(days=7)
+
+        # Mensagens pendentes (da memória)
+        pendentes = sorted(
+            [m for m in mensagens_pendentes.values() if m["status"] == "pendente"],
+            key=lambda x: x.get("criado_em", "")
+        )
+        pendentes_resumo = [
+            {"nome": m.get("nome","?"), "area": m.get("analise",{}).get("area","geral"),
+             "urgencia": m.get("analise",{}).get("urgencia","baixa"),
+             "criado_em": m.get("criado_em","")}
+            for m in pendentes[:5]
+        ]
+
+        conn = get_conn(); c = conn.cursor()
+
+        # Consultas de hoje
+        c.execute('''SELECT nome, hora_consulta, status FROM consultas
+                     WHERE data_consulta=%s AND status NOT IN ('cancelado')
+                     ORDER BY hora_consulta ASC''', (hoje,))
+        consultas_hoje = [{"nome":r[0],"hora":r[1],"status":r[2]} for r in c.fetchall()]
+
+        # Prazos urgentes (próximos 7 dias)
+        c.execute('''SELECT cliente, tipo, data_prazo::text, (data_prazo - %s) AS dias
+                     FROM prazos WHERE ativo=TRUE AND data_prazo BETWEEN %s AND %s
+                     ORDER BY data_prazo ASC LIMIT 6''', (hoje, hoje, fim_semana))
+        prazos_urgentes = [{"cliente":r[0],"tipo":r[1],"data":r[2],"dias":int(r[3])} for r in c.fetchall()]
+
+        # Honorários em atraso
+        c.execute('''SELECT nome, valor_total - valor_pago AS saldo, data_vencimento::text
+                     FROM honorarios WHERE ativo=TRUE AND valor_pago < valor_total AND data_vencimento < %s
+                     ORDER BY data_vencimento ASC LIMIT 5''', (hoje,))
+        hon_atraso = [{"nome":r[0],"saldo":float(r[1]),"vencimento":r[2]} for r in c.fetchall()]
+
+        c.execute('''SELECT COALESCE(SUM(valor_total - valor_pago),0)
+                     FROM honorarios WHERE ativo=TRUE AND valor_pago < valor_total AND data_vencimento < %s''', (hoje,))
+        total_atraso = float(c.fetchone()[0])
+
+        c.close(); conn.close()
+
+        hora_local = agora.hour
+        if hora_local < 12:   saudacao = "Bom dia"
+        elif hora_local < 18: saudacao = "Boa tarde"
+        else:                 saudacao = "Boa noite"
+
+        return {
+            "saudacao": saudacao,
+            "hora": agora.strftime("%H:%M"),
+            "pendentes_count": len(pendentes),
+            "pendentes_lista": pendentes_resumo,
+            "consultas_hoje": len(consultas_hoje),
+            "consultas_lista": consultas_hoje,
+            "prazos_urgentes_count": len(prazos_urgentes),
+            "prazos_lista": prazos_urgentes,
+            "honorarios_atraso_count": len(hon_atraso),
+            "honorarios_atraso_val": round(total_atraso, 2),
+            "honorarios_lista": hon_atraso,
+        }
+    except Exception as e:
+        print(f"Erro dashboard-dados: {e}")
+        return {"saudacao":"Olá","hora":"--:--","pendentes_count":0,"pendentes_lista":[],
+                "consultas_hoje":0,"consultas_lista":[],"prazos_urgentes_count":0,"prazos_lista":[],
+                "honorarios_atraso_count":0,"honorarios_atraso_val":0,"honorarios_lista":[]}
+
 # ─── PÁGINAS ───────────────────────────────────────────────────────────────────
+
+@app.get("/dashboard")
+async def dashboard():
+    return FileResponse("dashboard.html")
+
+@app.get("/manifest.json")
+async def manifest():
+    return FileResponse("manifest.json", media_type="application/manifest+json")
+
+@app.get("/sw.js")
+async def service_worker():
+    return FileResponse("sw.js", media_type="application/javascript")
+
+@app.get("/icon.svg")
+async def icon_svg():
+    svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1a1a2e"/>
+  <text x="256" y="340" font-family="Georgia,serif" font-size="240" font-weight="bold"
+        fill="#c9a84c" text-anchor="middle">LM</text>
+</svg>'''
+    from fastapi.responses import Response
+    return Response(content=svg, media_type="image/svg+xml")
 
 @app.get("/painel")
 async def painel():

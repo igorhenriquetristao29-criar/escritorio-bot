@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LM Advocacia">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon.svg">
+    <title>Dashboard — Letícia Marques Advocacia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        header {
+            background: #1a1a2e; color: white; padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        header h1 { font-size: 18px; }
+        .header-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .header-links a {
+            color: #adb5bd; text-decoration: none; font-size: 12px;
+            padding: 5px 10px; border-radius: 6px; border: 1px solid #495057;
+        }
+        .header-links a:hover { background: #343a40; color: white; }
+        .btn-sair {
+            background: none; border: 1px solid #dc3545; color: #dc3545;
+            padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+        .btn-sair:hover { background: #dc3545; color: white; }
+
+        main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+        /* SAUDAÇÃO */
+        .boas-vindas {
+            background: linear-gradient(135deg, #1a1a2e, #2d2d5e);
+            color: white; border-radius: 14px; padding: 20px 24px;
+            margin-bottom: 20px; box-shadow: 0 4px 16px rgba(26,26,46,0.3);
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+        }
+        .boas-vindas h2 { font-size: 22px; margin-bottom: 4px; }
+        .boas-vindas p  { font-size: 13px; color: #adb5bd; }
+        .hora-atual { font-size: 32px; font-weight: bold; color: #c9a84c; }
+
+        /* CARDS STAT */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; margin-bottom: 22px; }
+        .stat-card {
+            background: white; border-radius: 12px; padding: 16px 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-decoration: none;
+            display: block; transition: transform 0.15s, box-shadow 0.15s;
+            border-left: 4px solid #dee2e6;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+        .stat-card .numero { font-size: 32px; font-weight: bold; color: #1a1a2e; }
+        .stat-card .desc   { font-size: 12px; color: #888; margin-top: 3px; }
+        .stat-card.alerta   { border-left-color: #f59e0b; }
+        .stat-card.alerta .numero { color: #f59e0b; }
+        .stat-card.urgente  { border-left-color: #dc3545; }
+        .stat-card.urgente .numero { color: #dc3545; }
+        .stat-card.ok       { border-left-color: #28a745; }
+        .stat-card.ok .numero { color: #28a745; }
+        .stat-card.info     { border-left-color: #007bff; }
+        .stat-card.info .numero { color: #007bff; }
+
+        /* GRID PRINCIPAL */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+
+        .secao {
+            background: white; border-radius: 12px; padding: 18px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .secao-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #f0f2f5;
+        }
+        .secao-header h3 { font-size: 14px; color: #333; font-weight: bold; }
+        .secao-header a  { font-size: 12px; color: #007bff; text-decoration: none; }
+        .secao-header a:hover { text-decoration: underline; }
+
+        .item {
+            padding: 10px 12px; border-radius: 8px; margin-bottom: 8px;
+            background: #f8f9fa; display: flex; align-items: flex-start;
+            justify-content: space-between; gap: 8px;
+        }
+        .item:last-child { margin-bottom: 0; }
+        .item-nome { font-size: 13px; font-weight: bold; color: #333; }
+        .item-detalhe { font-size: 11px; color: #888; margin-top: 2px; }
+        .item-right { text-align: right; flex-shrink: 0; }
+
+        .badge { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; white-space: nowrap; }
+        .b-alta    { background: #fee2e2; color: #991b1b; }
+        .b-media   { background: #fef3c7; color: #92400e; }
+        .b-baixa   { background: #d1fae5; color: #065f46; }
+        .b-hoje    { background: #dbeafe; color: #1e40af; }
+        .b-urgente { background: #fee2e2; color: #991b1b; }
+        .b-ok      { background: #d1fae5; color: #065f46; }
+        .b-conf    { background: #dbeafe; color: #1e40af; }
+        .b-solic   { background: #fef3c7; color: #92400e; }
+        .b-atraso  { background: #fee2e2; color: #991b1b; }
+
+        .sem-item { text-align: center; color: #bbb; padding: 20px; font-size: 13px; }
+
+        /* INSTALL BANNER */
+        #install-banner {
+            display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #1a1a2e; color: white; padding: 12px 20px; border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 999;
+            display: flex; align-items: center; gap: 14px; font-size: 13px;
+            max-width: 90vw;
+        }
+        #install-banner button {
+            padding: 7px 16px; background: #c9a84c; color: #1a1a2e;
+            border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold;
+        }
+        #install-banner .fechar { background: none; color: #aaa; padding: 4px 8px; font-size: 16px; }
+
+        .atualizado { font-size: 11px; color: #aaa; text-align: right; margin-top: 14px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>⚖️ LM Advocacia</h1>
+    <div class="header-links">
+        <a href="/painel">Painel</a>
+        <a href="/agenda">Agenda</a>
+        <a href="/clientes">Clientes</a>
+        <a href="/financeiro">Financeiro</a>
+        <a href="/prazos">Prazos</a>
+        <a href="/relatorios">Relatórios</a>
+        <a href="/configuracoes">Config</a>
+        <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+</header>
+
+<main>
+
+    <!-- Saudação -->
+    <div class="boas-vindas">
+        <div>
+            <h2 id="saudacao">Carregando...</h2>
+            <p id="usuario-nome">Escritório Letícia Marques Advocacia</p>
+        </div>
+        <div class="hora-atual" id="relogio">--:--</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+        <a href="/painel" class="stat-card alerta">
+            <div class="numero" id="s-pendentes">—</div>
+            <div class="desc">Mensagens pendentes</div>
+        </a>
+        <a href="/agenda" class="stat-card info">
+            <div class="numero" id="s-consultas">—</div>
+            <div class="desc">Consultas hoje</div>
+        </a>
+        <a href="/prazos" class="stat-card urgente">
+            <div class="numero" id="s-prazos">—</div>
+            <div class="desc">Prazos esta semana</div>
+        </a>
+        <a href="/financeiro" class="stat-card urgente">
+            <div class="numero" id="s-atraso">—</div>
+            <div class="desc">Honorários em atraso</div>
+        </a>
+    </div>
+
+    <!-- Grid com detalhes -->
+    <div class="grid">
+
+        <!-- Mensagens pendentes -->
+        <div class="secao">
+            <div class="secao-header">
+                <h3>📬 Mensagens Pendentes</h3>
+                <a href="/painel">Ver todas →</a>
+            </div>
+            <div id="lista-pendentes"><div class="sem-item">Carregando...</div></div>
+        </div>
+
+        <!-- Agenda do dia -->
+        <div class="secao">
+            <div class="secao-header">
+                <h3>📅 Agenda de Hoje</h3>
+                <a href="/agenda">Ver agenda →</a>
+            </div>
+            <div id="lista-consultas"><div class="sem-item">Carregando...</div></div>
+        </div>
+
+        <!-- Prazos urgentes -->
+        <div class="secao">
+            <div class="secao-header">
+                <h3>⚖️ Prazos Urgentes</h3>
+                <a href="/prazos">Ver todos →</a>
+            </div>
+            <div id="lista-prazos"><div class="sem-item">Carregando...</div></div>
+        </div>
+
+        <!-- Honorários em atraso -->
+        <div class="secao">
+            <div class="secao-header">
+                <h3>💰 Honorários em Atraso</h3>
+                <a href="/financeiro">Ver todos →</a>
+            </div>
+            <div id="lista-honorarios"><div class="sem-item">Carregando...</div></div>
+        </div>
+
+    </div>
+
+    <div class="atualizado" id="atualizado"></div>
+
+</main>
+
+<!-- Banner de instalação PWA -->
+<div id="install-banner" style="display:none">
+    <span>📱 Instale o app no seu celular!</span>
+    <button onclick="instalarApp()">Instalar</button>
+    <button class="fechar" onclick="document.getElementById('install-banner').style.display='none'">✕</button>
+</div>
+
+<script>
+    const API = 'https://web-production-3c5ee.up.railway.app';
+
+    if (localStorage.getItem('painel_logado') !== '1') {
+        window.location.href = '/painel';
+    }
+
+    const usuario = localStorage.getItem('painel_usuario') || 'Equipe';
+    document.getElementById('usuario-nome').textContent = `Olá, ${usuario}!`;
+
+    function sair() {
+        localStorage.removeItem('painel_logado');
+        window.location.href = '/painel';
+    }
+
+    // Relógio em tempo real
+    function atualizarRelogio() {
+        const agora = new Date();
+        document.getElementById('relogio').textContent =
+            agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    }
+    atualizarRelogio();
+    setInterval(atualizarRelogio, 1000);
+
+    const AREAS = { bpc_loas:'BPC LOAS', inventario:'Inventário', licitacoes:'Licitações', fora_da_area:'Fora da Área', geral:'Geral' };
+
+    async function carregar() {
+        try {
+            const res  = await fetch(`${API}/dashboard-dados`);
+            const d    = await res.json();
+
+            document.getElementById('saudacao').textContent = d.saudacao + ',';
+            document.getElementById('s-pendentes').textContent = d.pendentes_count;
+            document.getElementById('s-consultas').textContent = d.consultas_hoje;
+            document.getElementById('s-prazos').textContent    = d.prazos_urgentes_count;
+            document.getElementById('s-atraso').textContent    =
+                d.honorarios_atraso_count > 0
+                    ? `${d.honorarios_atraso_count} (R$${parseFloat(d.honorarios_atraso_val).toLocaleString('pt-BR',{minimumFractionDigits:0})})`
+                    : '0';
+
+            // Mensagens pendentes
+            const lp = document.getElementById('lista-pendentes');
+            lp.innerHTML = d.pendentes_lista.length === 0
+                ? '<div class="sem-item">✅ Nenhuma mensagem pendente</div>'
+                : d.pendentes_lista.map(m => `
+                    <div class="item">
+                        <div>
+                            <div class="item-nome">${m.nome}</div>
+                            <div class="item-detalhe">${AREAS[m.area]||m.area} · ${m.criado_em||''}</div>
+                        </div>
+                        <span class="badge b-${m.urgencia}">${m.urgencia.toUpperCase()}</span>
+                    </div>`).join('');
+
+            // Consultas do dia
+            const lc = document.getElementById('lista-consultas');
+            lc.innerHTML = d.consultas_lista.length === 0
+                ? '<div class="sem-item">Nenhuma consulta hoje</div>'
+                : d.consultas_lista.map(c => `
+                    <div class="item">
+                        <div>
+                            <div class="item-nome">${c.nome}</div>
+                            <div class="item-detalhe">às ${c.hora}</div>
+                        </div>
+                        <span class="badge ${c.status==='confirmado'?'b-conf':'b-solic'}">${c.status==='confirmado'?'Confirmado':'Aguardando'}</span>
+                    </div>`).join('');
+
+            // Prazos urgentes
+            const lpr = document.getElementById('lista-prazos');
+            lpr.innerHTML = d.prazos_lista.length === 0
+                ? '<div class="sem-item">✅ Nenhum prazo urgente esta semana</div>'
+                : d.prazos_lista.map(p => `
+                    <div class="item">
+                        <div>
+                            <div class="item-nome">${p.cliente}</div>
+                            <div class="item-detalhe">${p.tipo||'Judicial'} · ${p.data}</div>
+                        </div>
+                        <span class="badge ${p.dias===0?'b-urgente':p.dias<=3?'b-urgente':'b-media'}">${p.dias===0?'HOJE':p.dias+'d'}</span>
+                    </div>`).join('');
+
+            // Honorários em atraso
+            const lh = document.getElementById('lista-honorarios');
+            lh.innerHTML = d.honorarios_lista.length === 0
+                ? '<div class="sem-item">✅ Nenhum honorário em atraso</div>'
+                : d.honorarios_lista.map(h => `
+                    <div class="item">
+                        <div>
+                            <div class="item-nome">${h.nome}</div>
+                            <div class="item-detalhe">Venc. ${h.vencimento||'—'}</div>
+                        </div>
+                        <span class="badge b-atraso">R$${parseFloat(h.saldo).toLocaleString('pt-BR',{minimumFractionDigits:0})}</span>
+                    </div>`).join('');
+
+            const agora = new Date();
+            document.getElementById('atualizado').textContent =
+                `Atualizado às ${agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+        } catch(e) {
+            console.error('Erro ao carregar dashboard:', e);
+        }
+    }
+
+    carregar();
+    setInterval(carregar, 60000);
+
+    // ── PWA ──────────────────────────────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW:', e));
+    }
+
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const banner = document.getElementById('install-banner');
+        if (!localStorage.getItem('pwa_instalado')) {
+            banner.style.display = 'flex';
+        }
+    });
+
+    function instalarApp() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(choice => {
+            if (choice.outcome === 'accepted') {
+                localStorage.setItem('pwa_instalado', '1');
+            }
+            document.getElementById('install-banner').style.display = 'none';
+            deferredPrompt = null;
+        });
+    }
+</script>
+</body>
+</html>
