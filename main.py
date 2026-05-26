@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import anthropic
 import requests
-import os, json, re, datetime, csv, io
+import os, json, re, datetime, csv, io, asyncio
 import psycopg2
 import psycopg2.extras
 
@@ -829,8 +829,8 @@ async def exportar_csv():
 
 # ─── RELATÓRIO SEMANAL ────────────────────────────────────────────────────────
 
-@app.post("/relatorio-semanal")
-async def enviar_relatorio_semanal():
+def _gerar_e_enviar_relatorio():
+    """Gera e envia o relatório semanal via WhatsApp. Retorna dict com resultado."""
     try:
         conn = get_conn()
         c = conn.cursor()
@@ -877,9 +877,41 @@ Painel completo:
             except:
                 pass
 
+        # Registra data do envio para não duplicar
+        set_config("ULTIMO_RELATORIO_SEMANAL", agora.strftime("%Y-%m-%d"))
+        print(f"Relatório semanal enviado: {data_inicio} a {data_fim}")
         return {"ok": True, "periodo": f"{data_inicio} a {data_fim}", "total": total}
     except Exception as e:
+        print(f"Erro ao enviar relatório semanal: {e}")
         return {"erro": str(e)}
+
+@app.post("/relatorio-semanal")
+async def enviar_relatorio_semanal():
+    return _gerar_e_enviar_relatorio()
+
+# ─── AGENDADOR AUTOMÁTICO ─────────────────────────────────────────────────────
+
+async def agendador():
+    """Roda em background, verifica a cada 30 min se deve enviar o relatório semanal."""
+    print("Agendador iniciado.")
+    while True:
+        try:
+            brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+            agora    = datetime.datetime.now(brasilia)
+            # Segunda-feira (weekday=0), entre 8h e 8h30
+            if agora.weekday() == 0 and agora.hour == 8 and agora.minute < 30:
+                hoje_str = agora.strftime("%Y-%m-%d")
+                ultimo   = get_config("ULTIMO_RELATORIO_SEMANAL", "")
+                if ultimo != hoje_str:
+                    print("Segunda-feira 8h — enviando relatório semanal automático...")
+                    _gerar_e_enviar_relatorio()
+        except Exception as e:
+            print(f"Erro no agendador: {e}")
+        await asyncio.sleep(1800)  # verifica a cada 30 minutos
+
+@app.on_event("startup")
+async def startup():
+    asyncio.create_task(agendador())
 
 # ─── CONFIGURAÇÕES ─────────────────────────────────────────────────────────────
 
