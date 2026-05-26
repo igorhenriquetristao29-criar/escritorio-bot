@@ -634,24 +634,74 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                     return {"status": "triagem - aguardando situacao"}
 
                 elif estado["stage"] == "situacao":
-                    nome_informado = estado.get("nome", nome)
-                    foto_salva     = estado.get("foto",  foto)
-                    primeiro_texto = estado.get("primeiro_texto", "")
+                    nome_informado  = estado.get("nome", nome)
+                    foto_salva      = estado.get("foto",  foto)
+                    primeiro_texto  = estado.get("primeiro_texto", "")
+                    analise_salva   = estado.get("analise_inicial")
+                    tk_in_salvo     = estado.get("tokens_in",  0)
+                    tk_out_salvo    = estado.get("tokens_out", 0)
+                    custo_salvo     = estado.get("custo", 0.0)
                     del triagem_pendente[telefone]
-                    # Atualiza as variáveis locais para o processamento normal abaixo
+
                     nome  = nome_informado
                     foto  = foto_salva
                     texto = f"{primeiro_texto}\n{texto}".strip() if primeiro_texto else texto
-                    # → continua para processamento normal sem return
+
+                    if analise_salva:
+                        # Usa análise feita na primeira mensagem — sem nova chamada ao Claude
+                        analise   = analise_salva
+                        categoria = analise.get("categoria", "irrelevante")
+                        msg = {
+                            "telefone": telefone, "nome": nome, "foto": foto,
+                            "mensagem_original": texto, "analise": analise,
+                            "fora_horario": False, "status": "pendente"
+                        }
+                        db_id, retorno = salvar_mensagem_db(msg)
+                        if db_id:
+                            if custo_salvo > 0:
+                                registrar_uso_claude(tk_in_salvo, tk_out_salvo, custo_salvo, msg_id=db_id)
+                            brasilia  = datetime.timezone(datetime.timedelta(hours=-3))
+                            agora_str = datetime.datetime.now(brasilia).strftime('%Y-%m-%d %H:%M:%S')
+                            chave = str(db_id)
+                            msg["id"]              = chave
+                            msg["retorno_cliente"] = retorno
+                            msg["funil_status"]    = "novo"
+                            msg["criado_em"]       = agora_str
+                            mensagens_pendentes[chave] = msg
+                        try:
+                            notificar_equipe(nome, texto, analise.get("urgencia","media"),
+                                             analise.get("area","geral"), categoria)
+                        except Exception as e:
+                            print(f"Erro notificar equipe (não crítico): {e}")
+                        return {"status": "triagem concluída - card criado"}
+                    # Sem análise salva → cai no processamento normal abaixo
 
             elif is_primeiro_contato(telefone):
+                # Analisa a mensagem PRIMEIRO para saber se é possível cliente
+                if not dentro_do_limite():
+                    analise_inicial = {"categoria": "cliente_nossa_area", "urgencia": "media",
+                                       "area": "geral", "perfil": "simples", "resposta": ""}
+                    tk_in, tk_out, custo_i = 0, 0, 0.0
+                else:
+                    analise_inicial, tk_in, tk_out, custo_i = analisar_mensagem(texto)
+
+                categoria_inicial = analise_inicial.get("categoria", "irrelevante")
+                if categoria_inicial in ["conversa_pessoal", "irrelevante"]:
+                    # Não é cliente — ignora silenciosamente
+                    return {"status": f"ignorado - {categoria_inicial}"}
+
+                # É possível cliente — inicia triagem com análise já armazenada
                 brasilia = datetime.timezone(datetime.timedelta(hours=-3))
                 agora    = datetime.datetime.now(brasilia)
                 triagem_pendente[telefone] = {
-                    "stage":          "nome",
-                    "foto":           foto,
-                    "criado_em":      agora,
-                    "primeiro_texto": texto,
+                    "stage":           "nome",
+                    "foto":            foto,
+                    "criado_em":       agora,
+                    "primeiro_texto":  texto,
+                    "analise_inicial": analise_inicial,
+                    "tokens_in":       tk_in,
+                    "tokens_out":      tk_out,
+                    "custo":           custo_i,
                 }
                 msg_nome = get_config("TRIAGEM_MSG_NOME",
                     "Olá! Bem-vindo ao escritório Letícia Marques Advocacia. "
