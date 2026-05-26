@@ -891,6 +891,55 @@ async def deletar_lembrete(lembrete_id: int):
     except Exception as e:
         return {"erro": str(e)}
 
+# ─── CRM DE CLIENTES ──────────────────────────────────────────────────────────
+
+@app.get("/clientes-lista")
+async def listar_clientes():
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''
+            WITH ultimo AS (
+                SELECT DISTINCT ON (telefone)
+                    telefone, nome, foto, area, funil_status,
+                    TO_CHAR(criado_em - INTERVAL '3 hours', 'YYYY-MM-DD HH24:MI') AS ultimo_contato
+                FROM mensagens
+                ORDER BY telefone, criado_em DESC
+            ),
+            contagens AS (
+                SELECT telefone,
+                       COUNT(*)                                              AS total_contatos,
+                       SUM(CASE WHEN status='contrato' THEN 1 ELSE 0 END)   AS contratos,
+                       SUM(CASE WHEN status='enviado'  THEN 1 ELSE 0 END)   AS enviados,
+                       SUM(CASE WHEN status='pendente' THEN 1 ELSE 0 END)   AS pendentes
+                FROM mensagens
+                GROUP BY telefone
+            )
+            SELECT u.telefone, u.nome, u.foto, u.area, u.funil_status,
+                   u.ultimo_contato,
+                   c.total_contatos, c.contratos, c.enviados, c.pendentes
+            FROM ultimo u
+            JOIN contagens c ON u.telefone = c.telefone
+            ORDER BY u.ultimo_contato DESC
+        ''')
+        rows = c.fetchall()
+        c.close()
+        conn.close()
+        return [
+            {
+                "telefone":      r[0], "nome":          r[1] or "Desconhecido",
+                "foto":          r[2] or "", "area":    r[3] or "geral",
+                "funil_status":  r[4] or "novo",
+                "ultimo_contato": r[5] or "",
+                "total_contatos": r[6], "contratos": r[7],
+                "enviados": r[8], "pendentes": r[9],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"Erro ao listar clientes: {e}")
+        return []
+
 # ─── PRAZOS JUDICIAIS ─────────────────────────────────────────────────────────
 
 @app.get("/prazos-lista")
@@ -1259,6 +1308,10 @@ async def relatorios_page():
 @app.get("/prazos")
 async def prazos_page():
     return FileResponse("prazos.html")
+
+@app.get("/clientes")
+async def clientes_page():
+    return FileResponse("clientes.html")
 
 @app.get("/configuracoes")
 async def configuracoes_page():
