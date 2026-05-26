@@ -116,6 +116,28 @@ def init_db():
         criado_em          TIMESTAMP DEFAULT NOW()
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS honorarios (
+        id              SERIAL PRIMARY KEY,
+        telefone        TEXT,
+        nome            TEXT NOT NULL,
+        processo        TEXT,
+        descricao       TEXT,
+        valor_total     NUMERIC(10,2) NOT NULL,
+        valor_pago      NUMERIC(10,2) DEFAULT 0,
+        data_vencimento DATE,
+        observacoes     TEXT,
+        ativo           BOOLEAN DEFAULT TRUE,
+        criado_em       TIMESTAMP DEFAULT NOW()
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS pagamentos (
+        id            SERIAL PRIMARY KEY,
+        honorario_id  INTEGER NOT NULL,
+        valor         NUMERIC(10,2) NOT NULL,
+        observacao    TEXT,
+        criado_em     TIMESTAMP DEFAULT NOW()
+    )''')
+
     conn.commit()
     c.close()
     conn.close()
@@ -990,6 +1012,139 @@ async def listar_clientes():
         print(f"Erro ao listar clientes: {e}")
         return []
 
+# ─── CONTROLE FINANCEIRO ──────────────────────────────────────────────────────
+
+def _status_honorario(valor_total, valor_pago, data_vencimento):
+    vt = float(valor_total or 0)
+    vp = float(valor_pago  or 0)
+    brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+    hoje     = datetime.datetime.now(brasilia).date()
+    if vp >= vt:
+        return "pago"
+    if data_vencimento and data_vencimento < hoje:
+        return "atrasado"
+    if vp > 0:
+        return "parcial"
+    return "pendente"
+
+@app.get("/financeiro-resumo")
+async def financeiro_resumo():
+    try:
+        brasilia  = datetime.timezone(datetime.timedelta(hours=-3))
+        hoje      = datetime.datetime.now(brasilia).date()
+        mes_atual = datetime.datetime.now(brasilia).strftime('%Y-%m')
+        conn = get_conn()
+        c = conn.cursor()
+
+        c.execute('''SELECT COALESCE(SUM(valor_total - valor_pago),0)
+                     FROM honorarios WHERE ativo=TRUE AND valor_pago < valor_total''')
+        a_receber = float(c.fetchone()[0])
+
+        c.execute('''SELECT COALESCE(SUM(p.valor),0)
+                     FROM pagamentos p
+                     WHERE TO_CHAR(p.criado_em - INTERVAL '3 hours','YYYY-MM') = %s''', (mes_atual,))
+        recebido_mes = float(c.fetchone()[0])
+
+        c.execute('''SELECT COUNT(*), COALESCE(SUM(valor_total - valor_pago),0)
+                     FROM honorarios
+                     WHERE ativo=TRUE AND valor_pago < valor_total AND data_vencimento < %s''', (hoje,))
+        r = c.fetchone()
+        atrasados_qtd, atrasados_val = int(r[0]), float(r[1])
+
+        c.execute('SELECT COUNT(*) FROM honorarios WHERE ativo=TRUE')
+        total = int(c.fetchone()[0])
+
+        c.close(); conn.close()
+        return {"a_receber": round(a_receber,2), "recebido_mes": round(recebido_mes,2),
+                "atrasados_qtd": atrasados_qtd, "atrasados_val": round(atrasados_val,2),
+                "total": total}
+    except Exception as e:
+        print(f"Erro financeiro-resumo: {e}")
+        return {"a_receber":0,"recebido_mes":0,"atrasados_qtd":0,"atrasados_val":0,"total":0}
+
+@app.get("/financeiro-lista")
+async def financeiro_lista():
+    try:
+        brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+        hoje     = datetime.datetime.now(brasilia).date()
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''SELECT id, telefone, nome, processo, descricao,
+                            valor_total, valor_pago, data_vencimento::text,
+                            observacoes,
+                            TO_CHAR(criado_em - INTERVAL '3 hours','DD/MM/YYYY')
+                     FROM honorarios WHERE ativo=TRUE ORDER BY
+                     CASE WHEN valor_pago >= valor_total THEN 2 ELSE 1 END,
+                     data_vencimento ASC NULLS LAST''')
+        rows = c.fetchall()
+        c.close(); conn.close()
+        result = []
+        for r in rows:
+            vt   = float(r[5] or 0)
+            vp   = float(r[6] or 0)
+            dvenc = datetime.date.fromisoformat(r[7]) if r[7] else None
+            result.append({
+                "id": r[0], "telefone": r[1] or "", "nome": r[2],
+                "processo": r[3] or "", "descricao": r[4] or "",
+                "valor_total": vt, "valor_pago": vp, "saldo": round(vt - vp, 2),
+                "data_vencimento": r[7] or "", "observacoes": r[8] or "",
+                "criado_em": r[9] or "",
+                "status": _status_honorario(vt, vp, dvenc),
+                "dias_vencimento": (dvenc - hoje).days if dvenc else None,
+            })
+        return result
+    except Exception as e:
+        print(f"Erro financeiro-lista: {e}")
+        return []
+
+@app.post("/financeiro")
+async def criar_honorario(request: Request):
+    data = await request.json()
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''INSERT INTO honorarios
+                       (telefone, nome, processo, descricao, valor_total, data_vencimento, observacoes)
+                     VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                  (data.get("telefone",""), data.get("nome",""), data.get("processo",""),
+                   data.get("descricao",""), float(data.get("valor_total",0)),
+                   data.get("data_vencimento") or None, data.get("observacoes","")))
+        new_id = c.fetchone()[0]
+        conn.commit(); c.close(); conn.close()
+        return {"ok": True, "id": new_id}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.post("/financeiro/{honorario_id}/pagamento")
+async def registrar_pagamento(honorario_id: int, request: Request):
+    data = await request.json()
+    valor = float(data.get("valor", 0))
+    obs   = data.get("observacao", "")
+    if valor <= 0:
+        return {"erro": "Valor inválido"}
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('UPDATE honorarios SET valor_pago = valor_pago + %s WHERE id=%s AND ativo=TRUE',
+                  (valor, honorario_id))
+        c.execute('INSERT INTO pagamentos (honorario_id, valor, observacao) VALUES (%s,%s,%s)',
+                  (honorario_id, valor, obs))
+        conn.commit(); c.close(); conn.close()
+        return {"ok": True}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.delete("/financeiro/{honorario_id}")
+async def deletar_honorario(honorario_id: int):
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('UPDATE honorarios SET ativo=FALSE WHERE id=%s', (honorario_id,))
+        conn.commit(); c.close(); conn.close()
+        return {"ok": True}
+    except Exception as e:
+        return {"erro": str(e)}
+
 # ─── PRAZOS JUDICIAIS ─────────────────────────────────────────────────────────
 
 @app.get("/prazos-lista")
@@ -1268,6 +1423,56 @@ def verificar_prazos():
     except Exception as e:
         print(f"Erro em verificar_prazos: {e}")
 
+# ─── ALERTA FINANCEIRO SEMANAL ────────────────────────────────────────────────
+
+def _alerta_financeiro_semanal():
+    try:
+        brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+        hoje     = datetime.datetime.now(brasilia).date()
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('''SELECT nome, processo, valor_total, valor_pago, data_vencimento
+                     FROM honorarios
+                     WHERE ativo=TRUE AND valor_pago < valor_total AND data_vencimento < %s
+                     ORDER BY data_vencimento ASC LIMIT 10''', (hoje,))
+        atrasados = c.fetchall()
+        c.execute('''SELECT COALESCE(SUM(valor_total - valor_pago),0)
+                     FROM honorarios WHERE ativo=TRUE AND valor_pago < valor_total AND data_vencimento < %s''',
+                  (hoje,))
+        total_atraso = float(c.fetchone()[0])
+        c.close(); conn.close()
+
+        if not atrasados:
+            return
+
+        linhas = "\n".join([
+            f"  - {r[0]} | R$ {float(r[2]-r[3]):.2f} | venc. {r[4].strftime('%d/%m') if r[4] else 'N/I'}"
+            for r in atrasados
+        ])
+        texto = f"""RESUMO FINANCEIRO — Inadimplencia
+
+Total em atraso: R$ {total_atraso:.2f}
+Clientes: {len(atrasados)}
+
+{linhas}
+
+Painel completo:
+{API_BASE}/financeiro"""
+
+        instance     = os.environ.get("ZAPI_INSTANCE","")
+        token        = os.environ.get("ZAPI_TOKEN","")
+        client_token = os.environ.get("ZAPI_CLIENT_TOKEN","")
+        url     = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
+        headers = {"Client-Token": client_token}
+        for numero in [IGOR, LETICIA]:
+            try:
+                requests.post(url, json={"phone": numero, "message": texto}, headers=headers, timeout=10)
+            except:
+                pass
+        print(f"Alerta financeiro enviado: {len(atrasados)} em atraso, R$ {total_atraso:.2f}")
+    except Exception as e:
+        print(f"Erro no alerta financeiro: {e}")
+
 # ─── AGENDADOR AUTOMÁTICO ─────────────────────────────────────────────────────
 
 async def agendador():
@@ -1296,6 +1501,13 @@ async def agendador():
                     print("Verificando alertas de prazo judicial...")
                     verificar_prazos()
                     set_config("ULTIMA_VERIFICACAO_PRAZOS", hoje_str)
+
+            # Alerta financeiro — segunda-feira às 8h (resumo de inadimplência)
+            if agora.weekday() == 0 and 8 <= agora.hour < 9:
+                hoje_str = agora.strftime("%Y-%m-%d")
+                if get_config("ULTIMO_ALERTA_FINANCEIRO", "") != hoje_str:
+                    _alerta_financeiro_semanal()
+                    set_config("ULTIMO_ALERTA_FINANCEIRO", hoje_str)
 
         except Exception as e:
             print(f"Erro no agendador: {e}")
@@ -1362,6 +1574,10 @@ async def prazos_page():
 @app.get("/clientes")
 async def clientes_page():
     return FileResponse("clientes.html")
+
+@app.get("/financeiro")
+async def financeiro_page():
+    return FileResponse("financeiro.html")
 
 @app.get("/configuracoes")
 async def configuracoes_page():

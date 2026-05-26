@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financeiro — Letícia Marques Advocacia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+
+        header {
+            background: #1a1a2e; color: white; padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        header h1 { font-size: 20px; }
+        .header-links { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .header-links a {
+            color: #adb5bd; text-decoration: none; font-size: 12px;
+            padding: 5px 10px; border-radius: 6px; border: 1px solid #495057;
+        }
+        .header-links a:hover { background: #343a40; color: white; }
+        .btn-sair {
+            background: none; border: 1px solid #dc3545; color: #dc3545;
+            padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+        .btn-sair:hover { background: #dc3545; color: white; }
+
+        main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+        /* CARDS */
+        .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 14px; margin-bottom: 24px; }
+        .card {
+            background: white; border-radius: 12px; padding: 18px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center;
+        }
+        .card .valor { font-size: 26px; font-weight: bold; color: #1a1a2e; }
+        .card .label { font-size: 12px; color: #888; margin-top: 4px; }
+        .card.verde .valor  { color: #28a745; }
+        .card.vermelho .valor { color: #dc3545; }
+        .card.azul .valor   { color: #007bff; }
+
+        /* FORM */
+        .secao {
+            background: white; border-radius: 12px; padding: 22px;
+            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .secao h2 { font-size: 15px; color: #333; margin-bottom: 16px;
+                    padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-grid .full { grid-column: 1 / -1; }
+        label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 4px; }
+        input[type="text"], input[type="number"], input[type="date"], textarea, select {
+            width: 100%; padding: 8px 11px; border: 1px solid #ddd; border-radius: 7px;
+            font-size: 13px; font-family: Arial, sans-serif; outline: none;
+        }
+        input:focus, select:focus, textarea:focus { border-color: #007bff; }
+        textarea { min-height: 60px; resize: vertical; }
+        .btn-add {
+            margin-top: 14px; padding: 9px 26px; background: #1a1a2e; color: white;
+            border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold;
+        }
+        .btn-add:hover { background: #2d2d4e; }
+        .aviso { background: #d4edda; color: #155724; padding: 9px 13px;
+                 border-radius: 7px; font-size: 13px; margin-top: 10px; display: none; }
+
+        /* FILTROS */
+        .filtros {
+            background: white; border-radius: 12px; padding: 14px 18px;
+            margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+        }
+        .filtros input[type="text"] {
+            flex: 1; min-width: 180px; padding: 7px 11px;
+            border: 1px solid #ddd; border-radius: 7px; font-size: 13px; outline: none;
+        }
+        .filtros input:focus { border-color: #007bff; }
+        .filtros select { padding: 7px 11px; border: 1px solid #ddd; border-radius: 7px; font-size: 13px; }
+        #cnt-filtro { font-size: 12px; color: #888; white-space: nowrap; }
+
+        /* TABELA */
+        .tabela-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8f9fa; padding: 9px 11px; text-align: left;
+             color: #555; font-weight: bold; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
+        td { padding: 9px 11px; border-bottom: 1px solid #f0f2f5; color: #333; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8f9fa; }
+        .sem-dados { text-align: center; color: #aaa; padding: 40px; font-size: 14px; }
+
+        /* BADGES STATUS */
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        .s-pago     { background: #d1fae5; color: #065f46; }
+        .s-parcial  { background: #dbeafe; color: #1e40af; }
+        .s-pendente { background: #fef3c7; color: #92400e; }
+        .s-atrasado { background: #fee2e2; color: #991b1b; animation: pulsar 1.2s infinite; }
+        @keyframes pulsar { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+        /* BOTÕES AÇÃO */
+        .btn-pag {
+            padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;
+            background: none; border: 1px solid #28a745; color: #28a745; margin-right: 4px;
+        }
+        .btn-pag:hover { background: #28a745; color: white; }
+        .btn-del {
+            padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;
+            background: none; border: 1px solid #dc3545; color: #dc3545;
+        }
+        .btn-del:hover { background: #dc3545; color: white; }
+
+        /* MODAL */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: white; border-radius: 14px; padding: 28px;
+            width: 90%; max-width: 420px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+        }
+        .modal h3 { font-size: 16px; color: #1a1a2e; margin-bottom: 6px; }
+        .modal .info-pag { font-size: 13px; color: #666; margin-bottom: 18px; }
+        .modal .info-pag strong { color: #333; }
+        .modal label { font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; display: block; }
+        .modal input { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 12px; }
+        .modal input:focus { border-color: #28a745; }
+        .modal-btns { display: flex; gap: 10px; margin-top: 6px; }
+        .btn-confirmar { flex: 1; padding: 10px; background: #28a745; color: white;
+                         border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-confirmar:hover { background: #218838; }
+        .btn-cancelar { flex: 1; padding: 10px; background: none; color: #666;
+                        border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .btn-cancelar:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Financeiro</h1>
+    <div class="header-links">
+        <a href="/painel">Painel</a>
+        <a href="/clientes">Clientes</a>
+        <a href="/prazos">Prazos</a>
+        <a href="/relatorios">Relatórios</a>
+        <a href="/configuracoes">Configurações</a>
+        <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+</header>
+
+<main>
+
+    <!-- Resumo -->
+    <div class="resumo">
+        <div class="card azul">
+            <div class="valor" id="r-a-receber">—</div>
+            <div class="label">Total a receber</div>
+        </div>
+        <div class="card verde">
+            <div class="valor" id="r-recebido-mes">—</div>
+            <div class="label">Recebido este mês</div>
+        </div>
+        <div class="card vermelho">
+            <div class="valor" id="r-atrasados">—</div>
+            <div class="label">Em atraso</div>
+        </div>
+        <div class="card">
+            <div class="valor" id="r-total">—</div>
+            <div class="label">Registros ativos</div>
+        </div>
+    </div>
+
+    <!-- Formulário -->
+    <div class="secao">
+        <h2>Cadastrar Honorário</h2>
+        <div class="form-grid">
+            <div>
+                <label>Cliente *</label>
+                <input type="text" id="f-nome" placeholder="Nome do cliente">
+            </div>
+            <div>
+                <label>Telefone</label>
+                <input type="text" id="f-telefone" placeholder="5564999999999">
+            </div>
+            <div>
+                <label>Processo</label>
+                <input type="text" id="f-processo" placeholder="Nº do processo (opcional)">
+            </div>
+            <div>
+                <label>Descrição do serviço *</label>
+                <input type="text" id="f-descricao" placeholder="Ex: BPC LOAS — fase administrativa">
+            </div>
+            <div>
+                <label>Valor total (R$) *</label>
+                <input type="number" id="f-valor-total" min="0" step="0.01" placeholder="0,00">
+            </div>
+            <div>
+                <label>Vencimento</label>
+                <input type="date" id="f-vencimento">
+            </div>
+            <div class="full">
+                <label>Observações</label>
+                <textarea id="f-obs" placeholder="Condições de pagamento, parcelamento, etc."></textarea>
+            </div>
+        </div>
+        <button class="btn-add" onclick="cadastrar()">Cadastrar honorário</button>
+        <div class="aviso" id="aviso-cad">Honorário cadastrado com sucesso!</div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros">
+        <input type="text" id="busca" placeholder="Buscar por cliente ou processo..." oninput="filtrar()">
+        <select id="filtro-status" onchange="filtrar()">
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="parcial">Parcial</option>
+            <option value="atrasado">Atrasado</option>
+            <option value="pago">Pago</option>
+        </select>
+        <span id="cnt-filtro"></span>
+    </div>
+
+    <!-- Tabela -->
+    <div class="secao">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #eee">
+            <h2 style="margin:0;border:none;padding:0">Honorários</h2>
+            <button class="btn-add" style="margin:0;padding:7px 16px;font-size:12px" onclick="carregar()">Atualizar</button>
+        </div>
+        <div class="tabela-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Cliente</th>
+                        <th>Descrição</th>
+                        <th>Valor total</th>
+                        <th>Pago</th>
+                        <th>Saldo</th>
+                        <th>Vencimento</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-fin">
+                    <tr><td colspan="8" class="sem-dados">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<!-- Modal Pagamento -->
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+        <h3>Registrar Pagamento</h3>
+        <div class="info-pag" id="modal-info"></div>
+        <label>Valor recebido (R$)</label>
+        <input type="number" id="modal-valor" min="0.01" step="0.01" placeholder="0,00">
+        <label>Observação (opcional)</label>
+        <input type="text" id="modal-obs" placeholder="Ex: PIX, dinheiro, parcela 1/3...">
+        <div class="modal-btns">
+            <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-confirmar" onclick="confirmarPagamento()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = 'https://web-production-3c5ee.up.railway.app';
+
+    if (localStorage.getItem('painel_logado') !== '1') {
+        window.location.href = '/painel';
+    }
+    function sair() {
+        localStorage.removeItem('painel_logado');
+        window.location.href = '/painel';
+    }
+
+    let todosRegistros = [];
+    let idAtual = null;
+
+    const STATUS_LABEL = { pago:'Pago', parcial:'Parcial', pendente:'Pendente', atrasado:'Atrasado' };
+
+    function brl(v) { return 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+    function formatarData(s) {
+        if (!s) return '—';
+        const [a,m,d] = s.split('-');
+        return `${d}/${m}/${a}`;
+    }
+
+    async function carregar() {
+        try {
+            const [resR, resL] = await Promise.all([
+                fetch(`${API}/financeiro-resumo`),
+                fetch(`${API}/financeiro-lista`)
+            ]);
+            const resumo = await resR.json();
+            todosRegistros = await resL.json();
+
+            document.getElementById('r-a-receber').textContent    = brl(resumo.a_receber);
+            document.getElementById('r-recebido-mes').textContent = brl(resumo.recebido_mes);
+            document.getElementById('r-total').textContent        = resumo.total;
+            document.getElementById('r-atrasados').textContent    =
+                resumo.atrasados_qtd > 0
+                    ? `${resumo.atrasados_qtd} (${brl(resumo.atrasados_val)})`
+                    : '0';
+
+            filtrar();
+        } catch (e) { console.error('Erro ao carregar financeiro:', e); }
+    }
+
+    function filtrar() {
+        const busca  = document.getElementById('busca').value.toLowerCase().trim();
+        const status = document.getElementById('filtro-status').value;
+        let lista = todosRegistros;
+        if (busca)  lista = lista.filter(r => (r.nome||'').toLowerCase().includes(busca) || (r.processo||'').includes(busca));
+        if (status) lista = lista.filter(r => r.status === status);
+
+        document.getElementById('cnt-filtro').textContent =
+            lista.length === todosRegistros.length ? `${lista.length} registros` : `${lista.length} de ${todosRegistros.length}`;
+
+        const tbody = document.getElementById('tabela-fin');
+        if (lista.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="sem-dados">Nenhum registro encontrado.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = lista.map(r => {
+            const vencTxt = r.data_vencimento ? formatarData(r.data_vencimento) : '—';
+            const vencCor = r.status === 'atrasado' ? 'color:#dc3545;font-weight:bold' : '';
+            return `
+            <tr>
+                <td><span class="badge s-${r.status}">${STATUS_LABEL[r.status]||r.status}</span></td>
+                <td>
+                    <strong>${r.nome}</strong>
+                    ${r.processo ? `<br><span style="font-size:11px;color:#888">${r.processo}</span>` : ''}
+                </td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao||'—'}</td>
+                <td><strong>${brl(r.valor_total)}</strong></td>
+                <td style="color:#28a745">${brl(r.valor_pago)}</td>
+                <td style="color:${r.saldo>0?'#dc3545':'#28a745'};font-weight:bold">${brl(r.saldo)}</td>
+                <td style="${vencCor}">${vencTxt}</td>
+                <td>
+                    ${r.status !== 'pago' ? `<button class="btn-pag" onclick="abrirPagamento(${r.id},'${r.nome.replace(/'/g,"\\'")}',${r.valor_total},${r.valor_pago},${r.saldo})">Receber</button>` : ''}
+                    <button class="btn-del" onclick="excluir(${r.id})">Excluir</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function cadastrar() {
+        const nome  = document.getElementById('f-nome').value.trim();
+        const valor = parseFloat(document.getElementById('f-valor-total').value);
+        const desc  = document.getElementById('f-descricao').value.trim();
+        if (!nome || !desc || !valor || valor <= 0) {
+            alert('Preencha: Cliente, Descrição e Valor total.');
+            return;
+        }
+        const body = {
+            nome, descricao: desc,
+            telefone:    document.getElementById('f-telefone').value.trim(),
+            processo:    document.getElementById('f-processo').value.trim(),
+            valor_total: valor,
+            data_vencimento: document.getElementById('f-vencimento').value || null,
+            observacoes: document.getElementById('f-obs').value.trim(),
+        };
+        try {
+            const res = await fetch(`${API}/financeiro`, {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+            });
+            const r = await res.json();
+            if (r.ok) {
+                ['f-nome','f-telefone','f-processo','f-descricao','f-valor-total','f-vencimento','f-obs']
+                    .forEach(id => document.getElementById(id).value = '');
+                const av = document.getElementById('aviso-cad');
+                av.style.display = 'block';
+                setTimeout(() => av.style.display = 'none', 3000);
+                carregar();
+            } else { alert('Erro: ' + (r.erro||'desconhecido')); }
+        } catch(e) { alert('Erro de conexão.'); }
+    }
+
+    function abrirPagamento(id, nome, total, pago, saldo) {
+        idAtual = id;
+        document.getElementById('modal-info').innerHTML =
+            `<strong>${nome}</strong><br>Total: ${brl(total)} · Pago: ${brl(pago)} · <strong>Saldo: ${brl(saldo)}</strong>`;
+        document.getElementById('modal-valor').value = '';
+        document.getElementById('modal-obs').value   = '';
+        document.getElementById('modal-overlay').classList.add('open');
+        setTimeout(() => document.getElementById('modal-valor').focus(), 100);
+    }
+
+    function fecharModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharModal(); });
+
+    async function confirmarPagamento() {
+        const valor = parseFloat(document.getElementById('modal-valor').value);
+        const obs   = document.getElementById('modal-obs').value.trim();
+        if (!valor || valor <= 0) { alert('Digite um valor válido.'); return; }
+        try {
+            const res = await fetch(`${API}/financeiro/${idAtual}/pagamento`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({valor, observacao: obs})
+            });
+            const r = await res.json();
+            if (r.ok) { fecharModal(); carregar(); }
+            else { alert('Erro: ' + (r.erro||'desconhecido')); }
+        } catch(e) { alert('Erro de conexão.'); }
+    }
+
+    async function excluir(id) {
+        if (!confirm('Remover este registro?')) return;
+        try {
+            await fetch(`${API}/financeiro/${id}`, {method:'DELETE'});
+            carregar();
+        } catch(e) { alert('Erro ao excluir.'); }
+    }
+
+    carregar();
+</script>
+</body>
+</html>
