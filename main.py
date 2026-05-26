@@ -538,58 +538,69 @@ async def login(request: Request):
 
 @app.post("/webhook")
 async def webhook(request: Request, background_tasks: BackgroundTasks):
-    data = await request.json()
-    if data.get("isGroup") or data.get("isNewsletter"):
-        return {"status": "ignorado - grupo"}
-    if data.get("isStatusReply"):
-        return {"status": "ignorado - status"}
-    if data.get("type") != "ReceivedCallback":
-        return {"status": "ignorado"}
+    try:
+        data = await request.json()
+        if data.get("isGroup") or data.get("isNewsletter"):
+            return {"status": "ignorado - grupo"}
+        if data.get("isStatusReply"):
+            return {"status": "ignorado - status"}
+        if data.get("type") != "ReceivedCallback":
+            return {"status": "ignorado"}
 
-    telefone = data.get("phone", "")
-    texto    = data.get("text", {}).get("message", "")
-    nome     = data.get("senderName", "Cliente")
-    foto     = data.get("photo", "")
+        telefone = data.get("phone", "")
+        texto    = data.get("text", {}).get("message", "")
+        nome     = data.get("senderName", "Cliente")
+        foto     = data.get("photo", "")
 
-    if not texto:                           return {"status": "sem texto"}
-    if telefone in [IGOR, LETICIA]:        return {"status": "ignorado - equipe"}
+        if not texto:                        return {"status": "sem texto"}
+        if telefone in [IGOR, LETICIA]:     return {"status": "ignorado - equipe"}
 
-    if not dentro_do_horario():
-        enviar_whatsapp(telefone, get_msg_fora_horario())
-        background_tasks.add_task(processar_mensagem_fora_horario, telefone, texto, nome, foto)
-        return {"status": "fora do horario - auto-resposta enviada"}
+        if not dentro_do_horario():
+            enviar_whatsapp(telefone, get_msg_fora_horario())
+            background_tasks.add_task(processar_mensagem_fora_horario, telefone, texto, nome, foto)
+            return {"status": "fora do horario - auto-resposta enviada"}
 
-    if not dentro_do_limite():
-        print("Limite diário Claude atingido — mensagem enfileirada sem análise.")
-        analise = {"categoria": "cliente_nossa_area", "urgencia": "media",
-                   "area": "geral", "perfil": "simples", "resposta": ""}
-        tokens_in, tokens_out, custo = 0, 0, 0.0
-    else:
-        historico = buscar_historico_conversa(telefone)
-        analise, tokens_in, tokens_out, custo = analisar_mensagem(texto, historico=historico)
+        if not dentro_do_limite():
+            print("Limite diário Claude atingido — mensagem enfileirada sem análise.")
+            analise = {"categoria": "cliente_nossa_area", "urgencia": "media",
+                       "area": "geral", "perfil": "simples", "resposta": ""}
+            tokens_in, tokens_out, custo = 0, 0, 0.0
+        else:
+            historico = buscar_historico_conversa(telefone)
+            analise, tokens_in, tokens_out, custo = analisar_mensagem(texto, historico=historico)
 
-    categoria = analise.get("categoria", "irrelevante")
+        categoria = analise.get("categoria", "irrelevante")
 
-    if categoria in ["conversa_pessoal", "irrelevante"]:
-        return {"status": f"ignorado - {categoria}"}
+        if categoria in ["conversa_pessoal", "irrelevante"]:
+            return {"status": f"ignorado - {categoria}"}
 
-    msg = {
-        "telefone": telefone, "nome": nome, "foto": foto,
-        "mensagem_original": texto, "analise": analise,
-        "fora_horario": False, "status": "pendente"
-    }
-    db_id, retorno = salvar_mensagem_db(msg)
-    if db_id:
-        if custo > 0:
-            registrar_uso_claude(tokens_in, tokens_out, custo, msg_id=db_id)
-        chave = str(db_id)
-        msg["id"]              = chave
-        msg["retorno_cliente"] = retorno
-        msg["funil_status"]    = "novo"
-        mensagens_pendentes[chave] = msg
+        msg = {
+            "telefone": telefone, "nome": nome, "foto": foto,
+            "mensagem_original": texto, "analise": analise,
+            "fora_horario": False, "status": "pendente"
+        }
+        db_id, retorno = salvar_mensagem_db(msg)
+        if db_id:
+            if custo > 0:
+                registrar_uso_claude(tokens_in, tokens_out, custo, msg_id=db_id)
+            chave = str(db_id)
+            msg["id"]              = chave
+            msg["retorno_cliente"] = retorno
+            msg["funil_status"]    = "novo"
+            mensagens_pendentes[chave] = msg
 
-    notificar_equipe(nome, texto, analise["urgencia"], analise["area"], categoria)
-    return {"status": "recebido"}
+        try:
+            notificar_equipe(nome, texto, analise.get("urgencia","media"),
+                             analise.get("area","geral"), categoria)
+        except Exception as e:
+            print(f"Erro notificar equipe (não crítico): {e}")
+
+        return {"status": "recebido"}
+
+    except Exception as e:
+        import traceback
+        print(f"ERRO WEBHOOK: {e}\n{traceback.format_exc()}")
+        return {"status": "erro", "detalhe": str(e)}
 
 @app.get("/pendentes")
 async def listar_pendentes():
