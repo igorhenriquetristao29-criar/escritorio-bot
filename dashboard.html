@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="LM Advocacia">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/logo.png">
     <title>Dashboard — Letícia Marques Advocacia</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,6 +18,8 @@
             background: #1a1a2e; color: white; padding: 14px 20px;
             display: flex; align-items: center; justify-content: space-between;
         }
+        .header-brand { display: flex; align-items: center; gap: 12px; }
+        .logo-header { height: 44px; width: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
         header h1 { font-size: 18px; }
         .header-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .header-links a {
@@ -123,7 +125,10 @@
 <body>
 
 <header>
-    <h1>⚖️ LM Advocacia</h1>
+    <div class="header-brand">
+        <img src="/logo.png" alt="LM Advocacia" class="logo-header">
+        <h1>LM Advocacia</h1>
+    </div>
     <div class="header-links">
         <a href="/painel">Painel</a>
         <a href="/agenda">Agenda</a>

@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/logo.png">
     <title>Painel de Atendimento</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -26,7 +26,9 @@
 
         /* ── CABEÇALHO ── */
         header { background: #1a1a2e; color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-        .header-left { display: flex; flex-direction: column; gap: 2px; }
+        .header-left { display: flex; flex-direction: row; align-items: center; gap: 12px; }
+        .logo-header { height: 44px; width: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .header-left-text { display: flex; flex-direction: column; gap: 2px; }
         header h1 { font-size: 18px; }
         .header-usuario { font-size: 12px; color: #adb5bd; }
         .header-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -279,8 +281,11 @@
 <!-- ── CABEÇALHO ── -->
 <header>
     <div class="header-left">
-        <h1>Painel de Atendimento</h1>
-        <span class="header-usuario" id="header-usuario"></span>
+        <img src="/logo.png" alt="LM Advocacia" class="logo-header">
+        <div class="header-left-text">
+            <h1>Painel de Atendimento</h1>
+            <span class="header-usuario" id="header-usuario"></span>
+        </div>
     </div>
     <div class="header-links">
         <a href="/dashboard">Dashboard</a>

@@ -1808,6 +1808,10 @@ async def manifest():
 async def service_worker():
     return FileResponse("sw.js", media_type="application/javascript")
 
+@app.get("/logo.png")
+async def logo_png():
+    return FileResponse("logo.png", media_type="image/png")
+
 @app.get("/icon.svg")
 async def icon_svg():
     svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
