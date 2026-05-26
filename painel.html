@@ -123,6 +123,8 @@
         .btn-contrato:hover { background: #5a32a3; }
         .btn-lembrete { background: #fd7e14; color: white; }
         .btn-lembrete:hover { background: #e8670e; }
+        .btn-excluir { background: none; border: 1px solid #adb5bd; color: #6c757d; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-excluir:hover { background: #dc3545; border-color: #dc3545; color: white; }
 
         /* ── FEEDBACK / OPÇÕES ── */
         .feedback-area { margin-top: 10px; display: none; }
@@ -536,6 +538,7 @@
                     <button class="btn-rejeitar" onclick="mostrarFeedback('${mid}')">Rejeitar</button>
                     <button class="btn-contrato" onclick="registrarContrato('${mid}','${nomeSeguro}')">Fechou Contrato</button>
                     <button class="btn-lembrete" onclick="abrirLembrete('${mid}','${m.telefone}','${nomeSeguro}')">Lembrete</button>
+                    <button class="btn-excluir"  onclick="excluirMensagem('${mid}')">🗑️ Excluir</button>
                 </div>
 
                 <div class="feedback-area" id="feedback-${mid}">
@@ -840,6 +843,20 @@
             countAnterior = dadosTodos.length;
             renderizar();
             alert(`Contrato de ${nome} registrado!`);
+        } catch (e) {
+            alert('Erro de conexão. Tente novamente.');
+        }
+    }
+
+    async function excluirMensagem(id) {
+        if (!confirm('Excluir esta mensagem das pendentes?\n(ela não será respondida e sairá da lista)')) return;
+        try {
+            const res  = await fetch(`${API}/pendentes/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.erro) { alert(data.erro); return; }
+            dadosTodos = dadosTodos.filter(m => m.id !== id);
+            countAnterior = dadosTodos.length;
+            renderizar();
         } catch (e) {
             alert('Erro de conexão. Tente novamente.');
         }

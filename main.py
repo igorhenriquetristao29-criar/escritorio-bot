@@ -966,6 +966,14 @@ async def contratar(msg_id: str, request: Request):
     del mensagens_pendentes[msg_id]
     return {"status": "contrato registrado"}
 
+@app.delete("/pendentes/{msg_id}")
+async def excluir_pendente(msg_id: str):
+    if msg_id not in mensagens_pendentes:
+        return {"erro": "mensagem não encontrada"}
+    del mensagens_pendentes[msg_id]
+    atualizar_status_db(int(msg_id), "descartado")
+    return {"status": "descartado"}
+
 @app.post("/funil/{msg_id}")
 async def atualizar_funil(msg_id: str, request: Request):
     data  = await request.json()
