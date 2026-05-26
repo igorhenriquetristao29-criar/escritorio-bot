@@ -134,6 +134,27 @@
         <div class="aviso" id="aviso-triagem">Configuração salva com sucesso!</div>
     </div>
 
+    <!-- Agenda de Consultas -->
+    <div class="secao">
+        <h2>Agenda de Consultas</h2>
+        <p>Quando ativada, o bot detecta pedidos de agendamento e apresenta horários disponíveis automaticamente ao cliente.</p>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <label style="margin:0">Ativa</label>
+            <input type="checkbox" id="agenda-ativa" style="width:18px;height:18px;cursor:pointer">
+        </div>
+
+        <label>Horários disponíveis (separados por vírgula)</label>
+        <input type="text" id="agenda-horarios" placeholder="Ex: 9:00,11:00,14:00,16:00"
+               style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none">
+        <p style="margin-top:6px;font-size:12px;color:#aaa">
+            O bot vai oferecer esses horários nos próximos dias úteis disponíveis.
+        </p>
+
+        <button class="btn-salvar" onclick="salvarAgenda()">Salvar agenda</button>
+        <div class="aviso" id="aviso-agenda">Configuração salva com sucesso!</div>
+    </div>
+
     <!-- Controle de Custo Claude -->
     <div class="secao">
         <h2>Limite de Gasto Diário — Claude AI</h2>
@@ -184,6 +205,8 @@
             document.getElementById('triagem-ativa').checked       = data.TRIAGEM_ATIVA       !== '0';
             document.getElementById('triagem-msg-nome').value      = data.TRIAGEM_MSG_NOME     || '';
             document.getElementById('triagem-msg-situacao').value  = data.TRIAGEM_MSG_SITUACAO || '';
+            document.getElementById('agenda-ativa').checked    = data.AGENDA_ATIVA    !== '0';
+            document.getElementById('agenda-horarios').value   = data.AGENDA_HORARIOS || '9:00,14:00';
         } catch (e) {
             console.error('Erro ao carregar configurações:', e);
         }
@@ -241,6 +264,19 @@
         } catch (e) {
             alert('Erro ao salvar. Tente novamente.');
         }
+    }
+
+    async function salvarAgenda() {
+        const ativo    = document.getElementById('agenda-ativa').checked ? '1' : '0';
+        const horarios = document.getElementById('agenda-horarios').value;
+        try {
+            await fetch(`${API}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({AGENDA_ATIVA: ativo, AGENDA_HORARIOS: horarios})
+            });
+            mostrarAviso('aviso-agenda');
+        } catch (e) { alert('Erro ao salvar. Tente novamente.'); }
     }
 
     async function salvarTriagem() {

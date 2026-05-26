@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda — Letícia Marques Advocacia</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+
+        header {
+            background: #1a1a2e; color: white; padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        header h1 { font-size: 20px; }
+        .header-links { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .header-links a {
+            color: #adb5bd; text-decoration: none; font-size: 12px;
+            padding: 5px 10px; border-radius: 6px; border: 1px solid #495057;
+        }
+        .header-links a:hover { background: #343a40; color: white; }
+        .btn-sair {
+            background: none; border: 1px solid #dc3545; color: #dc3545;
+            padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+        .btn-sair:hover { background: #dc3545; color: white; }
+
+        main { padding: 24px; max-width: 1000px; margin: 0 auto; }
+
+        /* CARDS */
+        .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 14px; margin-bottom: 24px; }
+        .card { background: white; border-radius: 12px; padding: 16px 18px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card .numero { font-size: 30px; font-weight: bold; color: #1a1a2e; }
+        .card .label  { font-size: 12px; color: #888; margin-top: 3px; }
+        .card.amarelo .numero { color: #f59e0b; }
+        .card.verde .numero   { color: #28a745; }
+        .card.azul .numero    { color: #007bff; }
+        .card.cinza .numero   { color: #6c757d; }
+
+        /* FILTROS */
+        .filtros {
+            background: white; border-radius: 12px; padding: 14px 18px;
+            margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+        }
+        .filtros select, .filtros input {
+            padding: 7px 11px; border: 1px solid #ddd; border-radius: 7px;
+            font-size: 13px; outline: none; background: white;
+        }
+        .filtros input { flex: 1; min-width: 160px; }
+        .filtros select:focus, .filtros input:focus { border-color: #007bff; }
+
+        /* LISTA DE CONSULTAS */
+        .secao { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .secao-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .secao-header h2 { font-size: 15px; color: #333; }
+
+        .consulta-card {
+            border: 1px solid #e9ecef; border-radius: 10px; padding: 14px 16px;
+            margin-bottom: 12px; transition: box-shadow 0.2s;
+        }
+        .consulta-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .consulta-card.hoje { border-left: 4px solid #007bff; }
+        .consulta-card.atrasado { border-left: 4px solid #dc3545; opacity: 0.7; }
+
+        .card-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+        .card-data { font-size: 15px; font-weight: bold; color: #1a1a2e; }
+        .card-hora { font-size: 13px; color: #555; margin-left: 8px; }
+        .card-nome { font-size: 14px; font-weight: bold; color: #333; margin-bottom: 4px; }
+        .card-info { font-size: 12px; color: #888; }
+
+        /* BADGES */
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        .s-solicitado  { background: #fef3c7; color: #92400e; }
+        .s-confirmado  { background: #dbeafe; color: #1e40af; }
+        .s-realizado   { background: #d1fae5; color: #065f46; }
+        .s-cancelado   { background: #f3f4f6; color: #6b7280; }
+
+        .area-bpc_loas   { background: #dbeafe; color: #1e40af; }
+        .area-inventario { background: #ede9fe; color: #5b21b6; }
+        .area-licitacoes { background: #fef3c7; color: #92400e; }
+        .area-geral      { background: #e0f2fe; color: #075985; }
+        .area-fora_da_area { background: #f3f4f6; color: #374151; }
+
+        /* BOTÕES */
+        .card-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+        .btn-ac {
+            padding: 5px 11px; border-radius: 6px; font-size: 11px; cursor: pointer;
+            border: 1px solid; background: none; white-space: nowrap;
+        }
+        .btn-confirmar { border-color: #007bff; color: #007bff; }
+        .btn-confirmar:hover { background: #007bff; color: white; }
+        .btn-realizado { border-color: #28a745; color: #28a745; }
+        .btn-realizado:hover { background: #28a745; color: white; }
+        .btn-cancelar  { border-color: #dc3545; color: #dc3545; }
+        .btn-cancelar:hover  { background: #dc3545; color: white; }
+        .btn-wpp { border-color: #25d366; color: #25d366; }
+        .btn-wpp:hover { background: #25d366; color: white; }
+
+        .sem-dados { text-align: center; color: #aaa; padding: 40px; font-size: 14px; }
+        .btn-refresh { padding: 7px 16px; background: #1a1a2e; color: white; border: none; border-radius: 7px; cursor: pointer; font-size: 12px; }
+        .btn-refresh:hover { background: #2d2d4e; }
+
+        .hoje-badge { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-left: 6px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Agenda de Consultas</h1>
+    <div class="header-links">
+        <a href="/painel">Painel</a>
+        <a href="/clientes">Clientes</a>
+        <a href="/financeiro">Financeiro</a>
+        <a href="/prazos">Prazos</a>
+        <a href="/relatorios">Relatórios</a>
+        <a href="/configuracoes">Configurações</a>
+        <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+</header>
+
+<main>
+
+    <!-- Resumo -->
+    <div class="resumo">
+        <div class="card amarelo">
+            <div class="numero" id="cnt-solicitadas">—</div>
+            <div class="label">Aguardando confirmação</div>
+        </div>
+        <div class="card azul">
+            <div class="numero" id="cnt-confirmadas">—</div>
+            <div class="label">Confirmadas</div>
+        </div>
+        <div class="card verde">
+            <div class="numero" id="cnt-hoje">—</div>
+            <div class="label">Hoje</div>
+        </div>
+        <div class="card cinza">
+            <div class="numero" id="cnt-realizadas">—</div>
+            <div class="label">Realizadas</div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros">
+        <select id="filtro-status" onchange="filtrar()">
+            <option value="">Todos os status</option>
+            <option value="solicitado">Aguardando confirmação</option>
+            <option value="confirmado">Confirmadas</option>
+            <option value="realizado">Realizadas</option>
+            <option value="cancelado">Canceladas</option>
+        </select>
+        <input type="text" id="busca" placeholder="Buscar por nome ou telefone..." oninput="filtrar()">
+        <span id="cnt-filtro" style="font-size:12px;color:#888;white-space:nowrap"></span>
+    </div>
+
+    <!-- Lista -->
+    <div class="secao">
+        <div class="secao-header">
+            <h2>Consultas</h2>
+            <button class="btn-refresh" onclick="carregar()">Atualizar</button>
+        </div>
+        <div id="lista-consultas"><div class="sem-dados">Carregando...</div></div>
+    </div>
+
+</main>
+
+<script>
+    const API = 'https://web-production-3c5ee.up.railway.app';
+
+    if (localStorage.getItem('painel_logado') !== '1') {
+        window.location.href = '/painel';
+    }
+    function sair() {
+        localStorage.removeItem('painel_logado');
+        window.location.href = '/painel';
+    }
+
+    let todasConsultas = [];
+
+    const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const AREAS = { bpc_loas:'BPC LOAS', inventario:'Inventário', licitacoes:'Licitações', fora_da_area:'Fora da Área', geral:'Geral' };
+    const STATUS_LABEL = { solicitado:'Aguardando', confirmado:'Confirmado', realizado:'Realizado', cancelado:'Cancelado' };
+
+    function nomeArea(a) { return AREAS[a] || (a||'Geral'); }
+
+    function formatarData(s) {
+        if (!s) return '—';
+        const d = new Date(s + 'T00:00:00');
+        return `${DIAS[d.getDay()]}, ${d.toLocaleDateString('pt-BR')}`;
+    }
+
+    function isHoje(dataStr) {
+        const hoje = new Date().toISOString().slice(0,10);
+        return dataStr === hoje;
+    }
+
+    function isPassado(dataStr) {
+        return dataStr < new Date().toISOString().slice(0,10);
+    }
+
+    async function carregar() {
+        try {
+            const res = await fetch(`${API}/consultas-lista`);
+            todasConsultas = await res.json();
+
+            const hoje     = todasConsultas.filter(c => isHoje(c.data) && c.status !== 'cancelado').length;
+            const solic    = todasConsultas.filter(c => c.status === 'solicitado').length;
+            const conf     = todasConsultas.filter(c => c.status === 'confirmado').length;
+            const realiz   = todasConsultas.filter(c => c.status === 'realizado').length;
+            document.getElementById('cnt-hoje').textContent        = hoje;
+            document.getElementById('cnt-solicitadas').textContent = solic;
+            document.getElementById('cnt-confirmadas').textContent = conf;
+            document.getElementById('cnt-realizadas').textContent  = realiz;
+
+            filtrar();
+        } catch(e) { console.error('Erro ao carregar agenda:', e); }
+    }
+
+    function filtrar() {
+        const status = document.getElementById('filtro-status').value;
+        const busca  = document.getElementById('busca').value.toLowerCase().trim();
+        let lista = todasConsultas;
+        if (status) lista = lista.filter(c => c.status === status);
+        if (busca)  lista = lista.filter(c => (c.nome||'').toLowerCase().includes(busca) || (c.telefone||'').includes(busca));
+
+        document.getElementById('cnt-filtro').textContent =
+            lista.length === todasConsultas.length ? `${lista.length} consultas` : `${lista.length} de ${todasConsultas.length}`;
+
+        const div = document.getElementById('lista-consultas');
+        if (lista.length === 0) {
+            div.innerHTML = '<div class="sem-dados">Nenhuma consulta encontrada.</div>';
+            return;
+        }
+
+        div.innerHTML = lista.map(c => {
+            const hj       = isHoje(c.data);
+            const passado  = isPassado(c.data) && c.status !== 'realizado' && c.status !== 'cancelado';
+            const cls      = hj ? 'hoje' : passado ? 'atrasado' : '';
+            const hojeTag  = hj ? '<span class="hoje-badge">HOJE</span>' : '';
+            const btns     = [];
+            if (c.status === 'solicitado')
+                btns.push(`<button class="btn-ac btn-confirmar" onclick="atualizar(${c.id},'confirmado','')">Confirmar</button>`);
+            if (c.status === 'confirmado')
+                btns.push(`<button class="btn-ac btn-realizado" onclick="atualizar(${c.id},'realizado','')">Realizado</button>`);
+            if (c.status !== 'cancelado' && c.status !== 'realizado')
+                btns.push(`<button class="btn-ac btn-cancelar" onclick="atualizar(${c.id},'cancelado','')">Cancelar</button>`);
+            btns.push(`<button class="btn-ac btn-wpp" onclick="abrirWpp('${c.telefone}')">WhatsApp</button>`);
+
+            return `
+            <div class="consulta-card ${cls}">
+                <div class="card-topo">
+                    <div>
+                        <span class="card-data">${formatarData(c.data)}${hojeTag}</span>
+                        <span class="card-hora">às ${c.hora}</span>
+                    </div>
+                    <span class="badge s-${c.status}">${STATUS_LABEL[c.status]||c.status}</span>
+                </div>
+                <div class="card-nome">${c.nome || 'Desconhecido'}</div>
+                <div class="card-info">
+                    ${c.telefone}
+                    &nbsp;·&nbsp;<span class="badge area-${c.area}">${nomeArea(c.area)}</span>
+                    ${c.observacoes ? `&nbsp;·&nbsp;${c.observacoes}` : ''}
+                </div>
+                <div class="card-btns">${btns.join('')}</div>
+            </div>`;
+        }).join('');
+    }
+
+    async function atualizar(id, status, obs) {
+        try {
+            await fetch(`${API}/consultas/${id}/status`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({status, observacoes: obs})
+            });
+            carregar();
+        } catch(e) { alert('Erro ao atualizar.'); }
+    }
+
+    function abrirWpp(telefone) {
+        window.open(`https://wa.me/${telefone.replace(/\D/g,'')}`, '_blank');
+    }
+
+    carregar();
+    setInterval(carregar, 60000);
+</script>
+</body>
+</html>

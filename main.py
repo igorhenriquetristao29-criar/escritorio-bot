@@ -12,6 +12,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 mensagens_pendentes = {}
 triagem_pendente    = {}   # { telefone: {stage, nome, foto, criado_em, primeiro_texto} }
+consulta_pendente   = {}   # { telefone: {slots, nome, area, criado_em} }
 IGOR    = "5564981475621"
 LETICIA = "5564981177107"
 API_BASE = "https://web-production-3c5ee.up.railway.app"
@@ -114,6 +115,19 @@ def init_db():
         alerta_dia_enviado BOOLEAN DEFAULT FALSE,
         ativo              BOOLEAN DEFAULT TRUE,
         criado_em          TIMESTAMP DEFAULT NOW()
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS consultas (
+        id               SERIAL PRIMARY KEY,
+        telefone         TEXT NOT NULL,
+        nome             TEXT,
+        area             TEXT,
+        data_consulta    DATE NOT NULL,
+        hora_consulta    TEXT NOT NULL,
+        status           TEXT DEFAULT 'solicitado',
+        observacoes      TEXT,
+        lembrete_enviado BOOLEAN DEFAULT FALSE,
+        criado_em        TIMESTAMP DEFAULT NOW()
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS honorarios (
@@ -572,6 +586,86 @@ def processar_mensagem_fora_horario(telefone, texto, nome, foto):
     except Exception as e:
         print(f"Erro ao processar fora do horário: {e}")
 
+# ─── AGENDA DE CONSULTAS ──────────────────────────────────────────────────────
+
+KEYWORDS_AGENDA = ["agendar", "consulta", "marcar horário", "marcar uma", "quero marcar",
+                   "horário disponível", "atendimento presencial", "reunião presencial"]
+
+def limpar_consultas_expiradas():
+    brasilia  = datetime.timezone(datetime.timedelta(hours=-3))
+    agora     = datetime.datetime.now(brasilia)
+    expirados = [t for t, d in list(consulta_pendente.items())
+                 if (agora - d["criado_em"]).total_seconds() > 3600]
+    for t in expirados:
+        del consulta_pendente[t]
+
+def gerar_slots_disponiveis(n=6):
+    """Gera os próximos N slots livres baseados nos horários configurados."""
+    brasilia     = datetime.timezone(datetime.timedelta(hours=-3))
+    hoje         = datetime.datetime.now(brasilia).date()
+    horarios_str = get_config("AGENDA_HORARIOS", "9:00,14:00")
+    horarios     = [h.strip() for h in horarios_str.split(",") if h.strip()]
+
+    try:
+        conn = get_conn(); c = conn.cursor()
+        c.execute("SELECT data_consulta::text, hora_consulta FROM consultas WHERE status IN ('solicitado','confirmado')")
+        ocupados = {(r[0], r[1]) for r in c.fetchall()}
+        c.close(); conn.close()
+    except:
+        ocupados = set()
+
+    slots = []
+    dia   = hoje
+    while len(slots) < n:
+        dia += datetime.timedelta(days=1)
+        if dia.weekday() >= 5:
+            continue
+        for hora in horarios:
+            if (str(dia), hora) not in ocupados:
+                slots.append({"data": str(dia), "hora": hora})
+            if len(slots) >= n:
+                break
+    return slots
+
+def _formatar_slot(slot):
+    data     = datetime.date.fromisoformat(slot["data"])
+    dias_pt  = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"]
+    return f"{dias_pt[data.weekday()]}, {data.strftime('%d/%m')} às {slot['hora']}"
+
+def _notificar_consulta(nome, data_fmt, hora, telefone):
+    instance     = os.environ.get("ZAPI_INSTANCE","")
+    token        = os.environ.get("ZAPI_TOKEN","")
+    client_token = os.environ.get("ZAPI_CLIENT_TOKEN","")
+    url     = f"https://api.z-api.io/instances/{instance}/token/{token}/send-text"
+    headers = {"Client-Token": client_token}
+    texto   = (f"SOLICITACAO DE CONSULTA\n\nCliente: {nome}\n"
+               f"Horário: {data_fmt} às {hora}\nTelefone: {telefone}\n\n"
+               f"Confirme com o cliente e registre no painel:\n{API_BASE}/agenda")
+    for numero in [IGOR, LETICIA]:
+        try: requests.post(url, json={"phone": numero, "message": texto}, headers=headers, timeout=10)
+        except: pass
+
+def verificar_lembretes_consultas():
+    """Envia lembrete WhatsApp ao cliente no dia da consulta confirmada."""
+    try:
+        brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+        hoje     = datetime.datetime.now(brasilia).date()
+        conn = get_conn(); c = conn.cursor()
+        c.execute('''SELECT id, telefone, nome, hora_consulta FROM consultas
+                     WHERE status='confirmado' AND data_consulta=%s AND lembrete_enviado=FALSE''', (hoje,))
+        for (cid, tel, nm, hora) in c.fetchall():
+            try:
+                enviar_whatsapp(tel,
+                    f"Olá, {nm}! Lembrando que sua consulta com a Dra. Letícia está agendada "
+                    f"para hoje às {hora}. Qualquer dúvida, estamos à disposição.")
+                c.execute('UPDATE consultas SET lembrete_enviado=TRUE WHERE id=%s', (cid,))
+                print(f"Lembrete de consulta enviado: {nm}")
+            except Exception as e:
+                print(f"Erro lembrete consulta {tel}: {e}")
+        conn.commit(); c.close(); conn.close()
+    except Exception as e:
+        print(f"Erro verificar_lembretes_consultas: {e}")
+
 # ─── TRIAGEM AUTOMÁTICA ────────────────────────────────────────────────────────
 
 def limpar_triagens_expiradas():
@@ -731,6 +825,61 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                 enviar_whatsapp(telefone, msg_nome)
                 return {"status": "triagem - aguardando nome"}
         # ── FIM TRIAGEM ─────────────────────────────────────────────────────────
+
+        # ── AGENDA DE CONSULTAS ──────────────────────────────────────────────
+        agenda_ativa = get_config("AGENDA_ATIVA", "1") == "1"
+        if agenda_ativa and telefone not in triagem_pendente:
+            limpar_consultas_expiradas()
+
+            if telefone in consulta_pendente:
+                estado_ag = consulta_pendente[telefone]
+                txt_lower = texto.strip().lower()
+                if txt_lower in ["cancelar", "não", "nao", "desistir"]:
+                    del consulta_pendente[telefone]
+                    enviar_whatsapp(telefone, "Tudo bem! Se precisar agendar depois, é só avisar.")
+                    return {"status": "agenda - cancelada"}
+                try:
+                    escolha = int(texto.strip()) - 1
+                    slots   = estado_ag["slots"]
+                    if 0 <= escolha < len(slots):
+                        slot     = slots[escolha]
+                        nome_ag  = estado_ag.get("nome", nome)
+                        area_ag  = estado_ag.get("area", "geral")
+                        data_fmt = _formatar_slot(slot)
+                        del consulta_pendente[telefone]
+                        conn = get_conn(); c = conn.cursor()
+                        c.execute('''INSERT INTO consultas (telefone, nome, area, data_consulta, hora_consulta)
+                                     VALUES (%s,%s,%s,%s,%s)''',
+                                  (telefone, nome_ag, area_ag, slot["data"], slot["hora"]))
+                        conn.commit(); c.close(); conn.close()
+                        enviar_whatsapp(telefone,
+                            f"Perfeito! Sua solicitação foi registrada para {data_fmt}. "
+                            f"Em breve entraremos em contato para confirmar.")
+                        _notificar_consulta(nome_ag, data_fmt, slot["hora"], telefone)
+                        return {"status": "agenda - consulta registrada"}
+                    else:
+                        enviar_whatsapp(telefone,
+                            f"Opção inválida. Responda com um número de 1 a {len(slots)}.")
+                        return {"status": "agenda - opção inválida"}
+                except ValueError:
+                    del consulta_pendente[telefone]
+                    # Não era número → processa como mensagem normal abaixo
+
+            elif any(kw in texto.lower() for kw in KEYWORDS_AGENDA):
+                slots = gerar_slots_disponiveis(6)
+                if slots:
+                    linhas = [f"{i+1} — {_formatar_slot(s)}" for i, s in enumerate(slots)]
+                    brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+                    consulta_pendente[telefone] = {
+                        "slots": slots, "nome": nome, "area": "geral",
+                        "criado_em": datetime.datetime.now(brasilia),
+                    }
+                    enviar_whatsapp(telefone,
+                        "Ótimo! Temos os seguintes horários disponíveis:\n\n"
+                        + "\n".join(linhas)
+                        + "\n\nResponda com o número do horário desejado.")
+                    return {"status": "agenda - aguardando escolha"}
+        # ── FIM AGENDA ──────────────────────────────────────────────────────
 
         if not dentro_do_limite():
             print("Limite diário Claude atingido — mensagem enfileirada sem análise.")
@@ -1509,6 +1658,13 @@ async def agendador():
                     _alerta_financeiro_semanal()
                     set_config("ULTIMO_ALERTA_FINANCEIRO", hoje_str)
 
+            # Lembretes de consulta — diariamente às 8h
+            if agora.weekday() < 5 and 8 <= agora.hour < 9:
+                hoje_str = agora.strftime("%Y-%m-%d")
+                if get_config("ULTIMO_LEMBRETE_CONSULTA", "") != hoje_str:
+                    verificar_lembretes_consultas()
+                    set_config("ULTIMO_LEMBRETE_CONSULTA", hoje_str)
+
         except Exception as e:
             print(f"Erro no agendador: {e}")
         await asyncio.sleep(1800)  # verifica a cada 30 minutos
@@ -1541,6 +1697,8 @@ async def get_configuracoes():
             "Para que possamos atendê-lo melhor, poderia nos informar seu nome?"),
         "TRIAGEM_MSG_SITUACAO": get_config("TRIAGEM_MSG_SITUACAO",
             "Obrigado! Pode descrever brevemente sua situação ou dúvida jurídica?"),
+        "AGENDA_ATIVA":    get_config("AGENDA_ATIVA",    "1"),
+        "AGENDA_HORARIOS": get_config("AGENDA_HORARIOS", "9:00,14:00"),
     }
 
 @app.post("/config")
@@ -1548,7 +1706,8 @@ async def salvar_configuracoes(request: Request):
     data = await request.json()
     for chave in ["MSG_FORA_HORARIO", "HORA_INICIO", "HORA_FIM",
                   "LIMITE_DIARIO_USD", "FOLLOWUP_ATIVO", "FOLLOWUP_HORAS", "FOLLOWUP_MENSAGEM",
-                  "TRIAGEM_ATIVA", "TRIAGEM_MSG_NOME", "TRIAGEM_MSG_SITUACAO"]:
+                  "TRIAGEM_ATIVA", "TRIAGEM_MSG_NOME", "TRIAGEM_MSG_SITUACAO",
+                  "AGENDA_ATIVA", "AGENDA_HORARIOS"]:
         if chave in data:
             set_config(chave, str(data[chave]))
     return {"ok": True}
@@ -1578,6 +1737,48 @@ async def clientes_page():
 @app.get("/financeiro")
 async def financeiro_page():
     return FileResponse("financeiro.html")
+
+@app.get("/agenda")
+async def agenda_page():
+    return FileResponse("agenda.html")
+
+@app.get("/consultas-lista")
+async def listar_consultas():
+    try:
+        conn = get_conn(); c = conn.cursor()
+        c.execute('''SELECT id, telefone, nome, area, data_consulta::text,
+                            hora_consulta, status, observacoes,
+                            TO_CHAR(criado_em - INTERVAL '3 hours','DD/MM/YYYY HH24:MI')
+                     FROM consultas ORDER BY data_consulta DESC, hora_consulta ASC LIMIT 200''')
+        rows = c.fetchall()
+        c.close(); conn.close()
+        return [{"id":r[0],"telefone":r[1],"nome":r[2],"area":r[3],"data":r[4],
+                 "hora":r[5],"status":r[6],"observacoes":r[7],"criado_em":r[8]} for r in rows]
+    except Exception as e:
+        print(f"Erro consultas-lista: {e}")
+        return []
+
+@app.post("/consultas/{consulta_id}/status")
+async def atualizar_status_consulta(consulta_id: int, request: Request):
+    data = await request.json()
+    try:
+        conn = get_conn(); c = conn.cursor()
+        c.execute('UPDATE consultas SET status=%s, observacoes=%s WHERE id=%s',
+                  (data.get("status",""), data.get("observacoes",""), consulta_id))
+        conn.commit(); c.close(); conn.close()
+        return {"ok": True}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.delete("/consultas/{consulta_id}")
+async def deletar_consulta(consulta_id: int):
+    try:
+        conn = get_conn(); c = conn.cursor()
+        c.execute("UPDATE consultas SET status='cancelado' WHERE id=%s", (consulta_id,))
+        conn.commit(); c.close(); conn.close()
+        return {"ok": True}
+    except Exception as e:
+        return {"erro": str(e)}
 
 @app.get("/configuracoes")
 async def configuracoes_page():
