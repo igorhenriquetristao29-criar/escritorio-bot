@@ -796,39 +796,8 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                         return {"status": "triagem concluída - card criado"}
                     # Sem análise salva → cai no processamento normal abaixo
 
-            elif is_primeiro_contato(telefone):
-                # Analisa a mensagem PRIMEIRO para saber se é possível cliente
-                if not dentro_do_limite():
-                    analise_inicial = {"categoria": "cliente_nossa_area", "urgencia": "media",
-                                       "area": "geral", "perfil": "simples", "resposta": ""}
-                    tk_in, tk_out, custo_i = 0, 0, 0.0
-                else:
-                    analise_inicial, tk_in, tk_out, custo_i = analisar_mensagem(texto)
-
-                categoria_inicial = analise_inicial.get("categoria", "irrelevante")
-                if categoria_inicial in ["conversa_pessoal", "irrelevante"]:
-                    # Não é cliente — ignora silenciosamente
-                    return {"status": f"ignorado - {categoria_inicial}"}
-
-                # É possível cliente — inicia triagem com análise já armazenada
-                brasilia = datetime.timezone(datetime.timedelta(hours=-3))
-                agora    = datetime.datetime.now(brasilia)
-                triagem_pendente[telefone] = {
-                    "stage":           "nome",
-                    "foto":            foto,
-                    "criado_em":       agora,
-                    "primeiro_texto":  texto,
-                    "analise_inicial": analise_inicial,
-                    "tokens_in":       tk_in,
-                    "tokens_out":      tk_out,
-                    "custo":           custo_i,
-                }
-                msg_nome = get_config("TRIAGEM_MSG_NOME",
-                    "Olá! Bem-vindo ao escritório Letícia Marques Advocacia. "
-                    "Para que possamos atendê-lo melhor, poderia nos informar seu nome?")
-                enviar_whatsapp(telefone, msg_nome)
-                return {"status": "triagem - aguardando nome"}
         # ── FIM TRIAGEM ─────────────────────────────────────────────────────────
+        # Triagem agora é SEMPRE manual — acionada pelo botão no painel.
 
         # ── AGENDA DE CONSULTAS ──────────────────────────────────────────────
         agenda_ativa = get_config("AGENDA_ATIVA", "1") == "1"
@@ -977,6 +946,42 @@ async def excluir_pendente(msg_id: str):
     del mensagens_pendentes[msg_id]
     atualizar_status_db(int(msg_id), "descartado")
     return {"status": "descartado"}
+
+@app.post("/iniciar-triagem/{msg_id}")
+async def iniciar_triagem_manual(msg_id: str):
+    """Acionado manualmente pelo painel — inicia triagem para um contato específico."""
+    if msg_id not in mensagens_pendentes:
+        return {"erro": "mensagem não encontrada"}
+    msg      = mensagens_pendentes[msg_id]
+    telefone = msg["telefone"]
+    foto     = msg.get("foto", "")
+    texto    = msg.get("mensagem_original", "")
+    analise  = msg.get("analise", {})
+
+    if telefone in triagem_pendente:
+        return {"erro": "triagem já está em andamento para este contato"}
+
+    brasilia = datetime.timezone(datetime.timedelta(hours=-3))
+    agora    = datetime.datetime.now(brasilia)
+    triagem_pendente[telefone] = {
+        "stage":           "nome",
+        "foto":            foto,
+        "criado_em":       agora,
+        "primeiro_texto":  texto,
+        "analise_inicial": analise,
+        "tokens_in":       msg.get("tokens_in", 0),
+        "tokens_out":      msg.get("tokens_out", 0),
+        "custo":           msg.get("custo", 0.0),
+    }
+    msg_nome = get_config("TRIAGEM_MSG_NOME",
+        "Olá! Bem-vindo ao escritório Letícia Marques Advocacia. "
+        "Para que possamos atendê-lo melhor, poderia nos informar seu nome?")
+    enviar_whatsapp(telefone, msg_nome)
+
+    # Remove o card do painel — triagem assume o controle
+    del mensagens_pendentes[msg_id]
+    atualizar_status_db(int(msg_id), "triagem_iniciada")
+    return {"status": "triagem iniciada"}
 
 @app.post("/funil/{msg_id}")
 async def atualizar_funil(msg_id: str, request: Request):
