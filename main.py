@@ -723,6 +723,10 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         if not texto:                        return {"status": "sem texto"}
         if telefone in [IGOR, LETICIA]:     return {"status": "ignorado - equipe"}
 
+        # ── PAUSA GLOBAL — nenhuma resposta automática é enviada ──────────────
+        if get_config("SISTEMA_PAUSADO", "0") == "1":
+            return {"status": "sistema pausado - mensagem ignorada"}
+
         if not dentro_do_horario():
             enviar_whatsapp(telefone, get_msg_fora_horario())
             background_tasks.add_task(processar_mensagem_fora_horario, telefone, texto, nome, foto)
@@ -1637,6 +1641,12 @@ async def agendador():
     print("Agendador iniciado.")
     while True:
         try:
+            # ── PAUSA GLOBAL ──────────────────────────────────────────────────
+            if get_config("SISTEMA_PAUSADO", "0") == "1":
+                print("Sistema pausado — agendador inativo.")
+                await asyncio.sleep(1800)
+                continue
+
             brasilia = datetime.timezone(datetime.timedelta(hours=-3))
             agora    = datetime.datetime.now(brasilia)
 
@@ -1707,6 +1717,7 @@ async def get_configuracoes():
             "Obrigado! Pode descrever brevemente sua situação ou dúvida jurídica?"),
         "AGENDA_ATIVA":    get_config("AGENDA_ATIVA",    "1"),
         "AGENDA_HORARIOS": get_config("AGENDA_HORARIOS", "9:00,14:00"),
+        "SISTEMA_PAUSADO": get_config("SISTEMA_PAUSADO", "0"),
     }
 
 @app.post("/config")
@@ -1715,7 +1726,7 @@ async def salvar_configuracoes(request: Request):
     for chave in ["MSG_FORA_HORARIO", "HORA_INICIO", "HORA_FIM",
                   "LIMITE_DIARIO_USD", "FOLLOWUP_ATIVO", "FOLLOWUP_HORAS", "FOLLOWUP_MENSAGEM",
                   "TRIAGEM_ATIVA", "TRIAGEM_MSG_NOME", "TRIAGEM_MSG_SITUACAO",
-                  "AGENDA_ATIVA", "AGENDA_HORARIOS"]:
+                  "AGENDA_ATIVA", "AGENDA_HORARIOS", "SISTEMA_PAUSADO"]:
         if chave in data:
             set_config(chave, str(data[chave]))
     return {"ok": True}

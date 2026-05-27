@@ -68,6 +68,20 @@
 
 <main>
 
+    <!-- PAUSA GLOBAL -->
+    <div class="secao" id="secao-pausa" style="border: 2px solid #dc3545;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+            <div>
+                <h2 style="color:#dc3545;">⏸️ Pausar Sistema</h2>
+                <p style="color:#888; font-size:13px; margin-top:4px;">Quando pausado, nenhuma mensagem automática é enviada — nem respostas, follow-ups, alertas ou lembretes.</p>
+            </div>
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:15px; font-weight:bold;">
+                <input type="checkbox" id="chk-pausado" onchange="togglePausa(this)" style="width:20px;height:20px;cursor:pointer;">
+                <span id="txt-pausa">Sistema ativo</span>
+            </label>
+        </div>
+    </div>
+
     <!-- Horário de Atendimento -->
     <div class="secao">
         <h2>Horário de Atendimento</h2>
@@ -218,6 +232,10 @@
             document.getElementById('triagem-msg-situacao').value  = data.TRIAGEM_MSG_SITUACAO || '';
             document.getElementById('agenda-ativa').checked    = data.AGENDA_ATIVA    !== '0';
             document.getElementById('agenda-horarios').value   = data.AGENDA_HORARIOS || '9:00,14:00';
+            const pausado = data.SISTEMA_PAUSADO === '1';
+            document.getElementById('chk-pausado').checked = pausado;
+            document.getElementById('txt-pausa').textContent  = pausado ? '⏸️ Sistema PAUSADO' : 'Sistema ativo';
+            document.getElementById('secao-pausa').style.background = pausado ? '#fff5f5' : '';
         } catch (e) {
             console.error('Erro ao carregar configurações:', e);
         }
@@ -230,6 +248,23 @@
             document.getElementById('custo-mes-val').textContent   = `$${c.custo_mes.toFixed(4)}`;
             document.getElementById('custo-total-val').textContent = `$${c.custo_total.toFixed(4)}`;
         } catch (e) {}
+    }
+
+    async function togglePausa(chk) {
+        const pausado = chk.checked;
+        try {
+            await fetch(`${API}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ SISTEMA_PAUSADO: pausado ? '1' : '0' })
+            });
+            document.getElementById('txt-pausa').textContent  = pausado ? '⏸️ Sistema PAUSADO' : 'Sistema ativo';
+            document.getElementById('secao-pausa').style.background = pausado ? '#fff5f5' : '';
+            alert(pausado ? '⏸️ Sistema pausado! Nenhuma mensagem automática será enviada.' : '▶️ Sistema reativado!');
+        } catch (e) {
+            alert('Erro ao salvar. Tente novamente.');
+            chk.checked = !pausado;
+        }
     }
 
     async function salvarHorario() {
