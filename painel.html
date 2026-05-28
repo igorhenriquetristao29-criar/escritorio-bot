@@ -872,17 +872,72 @@
     }
 
     async function excluirMensagem(id) {
-        if (!confirm('Excluir esta mensagem das pendentes?\n(ela não será respondida e sairá da lista)')) return;
+        const msg = dadosTodos.find(m => m.id === id);
+        const nome = msg ? msg.nome : 'este contato';
+        const telefone = msg ? msg.telefone : '';
+
+        // Mostra escolha ao usuário
+        const opcao = await mostrarOpcaoExcluir(nome);
+        if (!opcao) return; // cancelou
+
         try {
+            if (opcao === 'ignorar') {
+                // Ignora o contato permanentemente
+                await fetch(`${API}/ignorar-contato`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ telefone, nome })
+                });
+            }
+            // Em ambos os casos, descarta a mensagem do painel
             const res  = await fetch(`${API}/pendentes/${id}`, { method: 'DELETE' });
             const data = await res.json();
             if (data.erro) { alert(data.erro); return; }
             dadosTodos = dadosTodos.filter(m => m.id !== id);
             countAnterior = dadosTodos.length;
             renderizar();
+            if (opcao === 'ignorar') {
+                alert(`✅ "${nome}" adicionado à lista de contatos conhecidos.\nAs próximas mensagens não aparecerão mais no painel.`);
+            }
         } catch (e) {
             alert('Erro de conexão. Tente novamente.');
         }
+    }
+
+    function mostrarOpcaoExcluir(nome) {
+        return new Promise(resolve => {
+            // Remove modal anterior se existir
+            const antigo = document.getElementById('modal-excluir');
+            if (antigo) antigo.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'modal-excluir';
+            modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.5);
+                display:flex;align-items:center;justify-content:center;z-index:9999;`;
+            modal.innerHTML = `
+                <div style="background:white;border-radius:16px;padding:28px 28px 24px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                    <h3 style="margin:0 0 8px;color:#1a1a2e;font-size:16px;">🗑️ Excluir mensagem</h3>
+                    <p style="color:#666;font-size:13px;margin:0 0 20px;">Como deseja tratar <strong>${nome}</strong>?</p>
+                    <button id="btn-so-essa" style="width:100%;padding:12px;margin-bottom:10px;border-radius:10px;
+                        border:1px solid #dee2e6;background:#f8f9fa;cursor:pointer;font-size:13px;text-align:left;">
+                        <strong>🗑️ Só esta mensagem</strong><br>
+                        <span style="color:#888;font-size:11px;">Próximas mensagens continuam aparecendo no painel</span>
+                    </button>
+                    <button id="btn-ignorar" style="width:100%;padding:12px;margin-bottom:10px;border-radius:10px;
+                        border:1px solid #1a1a2e;background:#1a1a2e;color:white;cursor:pointer;font-size:13px;text-align:left;">
+                        <strong>🚫 Ignorar este contato</strong><br>
+                        <span style="color:#adb5bd;font-size:11px;">Mensagens futuras não aparecem mais no painel</span>
+                    </button>
+                    <button id="btn-cancelar-excluir" style="width:100%;padding:8px;border-radius:10px;
+                        border:none;background:none;color:#888;cursor:pointer;font-size:12px;">Cancelar</button>
+                </div>`;
+            document.body.appendChild(modal);
+
+            document.getElementById('btn-so-essa').onclick    = () => { modal.remove(); resolve('descartar'); };
+            document.getElementById('btn-ignorar').onclick    = () => { modal.remove(); resolve('ignorar'); };
+            document.getElementById('btn-cancelar-excluir').onclick = () => { modal.remove(); resolve(null); };
+            modal.addEventListener('click', e => { if (e.target === modal) { modal.remove(); resolve(null); } });
+        });
     }
 
     // ── NOTAS ─────────────────────────────────────────────────────────────────

@@ -152,6 +152,12 @@ def init_db():
         criado_em     TIMESTAMP DEFAULT NOW()
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS contatos_ignorados (
+        telefone    TEXT PRIMARY KEY,
+        nome        TEXT,
+        ignorado_em TIMESTAMP DEFAULT NOW()
+    )''')
+
     conn.commit()
     c.close()
     conn.close()
@@ -414,6 +420,17 @@ except Exception as e:
     print(f"AVISO: Banco não inicializado — {e}")
 
 # ─── HORÁRIO DE ATENDIMENTO ────────────────────────────────────────────────────
+
+def is_contato_ignorado(telefone: str) -> bool:
+    try:
+        conn = get_conn(); c = conn.cursor()
+        c.execute("SELECT 1 FROM contatos_ignorados WHERE telefone=%s", (telefone,))
+        existe = c.fetchone() is not None
+        c.close(); conn.close()
+        return existe
+    except Exception as e:
+        print(f"Erro is_contato_ignorado: {e}")
+        return False
 
 def dentro_do_horario():
     if os.environ.get("MODO_TESTE") == "1":
@@ -722,6 +739,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
 
         if not texto:                        return {"status": "sem texto"}
         if telefone in [IGOR, LETICIA]:     return {"status": "ignorado - equipe"}
+        if is_contato_ignorado(telefone):   return {"status": "ignorado - contato conhecido"}
 
         # ── PAUSA GLOBAL — nenhuma resposta automática é enviada ──────────────
         if get_config("SISTEMA_PAUSADO", "0") == "1":
@@ -946,6 +964,44 @@ async def excluir_pendente(msg_id: str):
     del mensagens_pendentes[msg_id]
     atualizar_status_db(int(msg_id), "descartado")
     return {"status": "descartado"}
+
+@app.post("/ignorar-contato")
+async def ignorar_contato(request: Request):
+    data     = await request.json()
+    telefone = data.get("telefone", "").strip()
+    nome     = data.get("nome", "")
+    if not telefone:
+        return {"erro": "telefone obrigatório"}
+    try:
+        conn = get_conn(); c = conn.cursor()
+        c.execute('''INSERT INTO contatos_ignorados (telefone, nome)
+                     VALUES (%s, %s) ON CONFLICT (telefone) DO UPDATE SET nome=%s''',
+                  (telefone, nome, nome))
+        conn.commit(); c.close(); conn.close()
+        return {"status": "contato ignorado"}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.delete("/ignorar-contato/{telefone}")
+async def remover_ignorado(telefone: str):
+    try:
+        conn = get_conn(); c = conn.cursor()
+        c.execute("DELETE FROM contatos_ignorados WHERE telefone=%s", (telefone,))
+        conn.commit(); c.close(); conn.close()
+        return {"status": "contato reativado"}
+    except Exception as e:
+        return {"erro": str(e)}
+
+@app.get("/contatos-ignorados")
+async def listar_ignorados():
+    try:
+        conn = get_conn(); c = conn.cursor()
+        c.execute("SELECT telefone, nome, ignorado_em FROM contatos_ignorados ORDER BY ignorado_em DESC")
+        rows = c.fetchall(); c.close(); conn.close()
+        return [{"telefone": r[0], "nome": r[1],
+                 "ignorado_em": r[2].strftime("%d/%m/%Y %H:%M") if r[2] else ""} for r in rows]
+    except Exception as e:
+        return []
 
 @app.post("/iniciar-triagem/{msg_id}")
 async def iniciar_triagem_manual(msg_id: str):
