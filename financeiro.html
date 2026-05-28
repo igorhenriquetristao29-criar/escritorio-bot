@@ -82,7 +82,25 @@
         }
         .filtros input:focus { border-color: #007bff; }
         .filtros select { padding: 7px 11px; border: 1px solid #ddd; border-radius: 7px; font-size: 13px; }
+        .filtros input[type="date"] { padding: 6px 10px; border: 1px solid #ddd; border-radius: 7px; font-size: 13px; color: #333; }
+        .btn-periodo { padding: 5px 12px; border: 1px solid #dee2e6; border-radius: 20px; background: white; color: #555; font-size: 11px; cursor: pointer; white-space: nowrap; }
+        .btn-periodo:hover, .btn-periodo.ativo { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+        .btn-pdf { padding: 7px 14px; background: #dc3545; color: white; border: none; border-radius: 7px; font-size: 12px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+        .btn-pdf:hover { background: #c82333; }
         #cnt-filtro { font-size: 12px; color: #888; white-space: nowrap; }
+
+        /* IMPRESSÃO / PDF */
+        @media print {
+            header, .filtros, .resumo, .btn-add, .btn-pdf, .btn-periodo,
+            .acoes, button, .header-links, .btn-sair { display: none !important; }
+            body { background: white; }
+            .secao { box-shadow: none; border: 1px solid #ddd; }
+            .print-header { display: block !important; }
+        }
+        .print-header { display: none; text-align: center; padding: 20px 0 10px; }
+        .print-header img { height: 70px; margin-bottom: 8px; }
+        .print-header h2 { font-size: 18px; color: #1a1a2e; }
+        .print-header p  { font-size: 12px; color: #888; margin-top: 4px; }
 
         /* TABELA */
         .tabela-wrap { overflow-x: auto; }
@@ -229,7 +247,21 @@
             <option value="atrasado">Atrasado</option>
             <option value="pago">Pago</option>
         </select>
+        <input type="date" id="filtro-de" onchange="filtrar()" title="Data inicial">
+        <input type="date" id="filtro-ate" onchange="filtrar()" title="Data final">
+        <button class="btn-periodo" onclick="setPeriodo('mes')"  id="p-mes">Este mês</button>
+        <button class="btn-periodo" onclick="setPeriodo('anterior')" id="p-anterior">Mês anterior</button>
+        <button class="btn-periodo" onclick="setPeriodo('ano')"  id="p-ano">Este ano</button>
+        <button class="btn-periodo" onclick="setPeriodo('')"     id="p-todos">Todos</button>
+        <button class="btn-pdf" onclick="gerarPDF()">📄 PDF</button>
         <span id="cnt-filtro"></span>
+    </div>
+
+    <!-- Cabeçalho visível apenas no PDF/Impressão -->
+    <div class="print-header">
+        <img src="/logo.png" alt="LM Advocacia">
+        <h2>Letícia Marques Advocacia &amp; Consultoria</h2>
+        <p id="print-periodo">Relatório Financeiro</p>
     </div>
 
     <!-- Tabela -->
@@ -322,12 +354,48 @@
         } catch (e) { console.error('Erro ao carregar financeiro:', e); }
     }
 
+    function setPeriodo(p) {
+        const hoje = new Date();
+        let de = '', ate = '';
+        if (p === 'mes') {
+            de  = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
+            ate = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).toISOString().slice(0,10);
+        } else if (p === 'anterior') {
+            de  = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1).toISOString().slice(0,10);
+            ate = new Date(hoje.getFullYear(), hoje.getMonth(), 0).toISOString().slice(0,10);
+        } else if (p === 'ano') {
+            de  = new Date(hoje.getFullYear(), 0, 1).toISOString().slice(0,10);
+            ate = new Date(hoje.getFullYear(), 11, 31).toISOString().slice(0,10);
+        }
+        document.getElementById('filtro-de').value  = de;
+        document.getElementById('filtro-ate').value = ate;
+        ['mes','anterior','ano','todos'].forEach(id => document.getElementById('p-'+id).classList.remove('ativo'));
+        if (p) document.getElementById('p-'+(p==='mes'?'mes':p==='anterior'?'anterior':'ano')).classList.add('ativo');
+        else   document.getElementById('p-todos').classList.add('ativo');
+        filtrar();
+    }
+
+    function gerarPDF() {
+        const de  = document.getElementById('filtro-de').value;
+        const ate = document.getElementById('filtro-ate').value;
+        let periodo = 'Todos os registros';
+        if (de && ate) periodo = `Período: ${formatarData(de)} a ${formatarData(ate)}`;
+        else if (de)   periodo = `A partir de: ${formatarData(de)}`;
+        else if (ate)  periodo = `Até: ${formatarData(ate)}`;
+        document.getElementById('print-periodo').textContent = periodo + ' — gerado em ' + new Date().toLocaleDateString('pt-BR');
+        window.print();
+    }
+
     function filtrar() {
         const busca  = document.getElementById('busca').value.toLowerCase().trim();
         const status = document.getElementById('filtro-status').value;
+        const de     = document.getElementById('filtro-de').value;
+        const ate    = document.getElementById('filtro-ate').value;
         let lista = todosRegistros;
         if (busca)  lista = lista.filter(r => (r.nome||'').toLowerCase().includes(busca) || (r.processo||'').includes(busca));
         if (status) lista = lista.filter(r => r.status === status);
+        if (de)     lista = lista.filter(r => r.data_vencimento && r.data_vencimento >= de);
+        if (ate)    lista = lista.filter(r => r.data_vencimento && r.data_vencimento <= ate);
 
         document.getElementById('cnt-filtro').textContent =
             lista.length === todosRegistros.length ? `${lista.length} registros` : `${lista.length} de ${todosRegistros.length}`;

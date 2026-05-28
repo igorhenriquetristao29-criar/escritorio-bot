@@ -202,6 +202,18 @@
         <div class="aviso" id="aviso-limite">Limite salvo com sucesso!</div>
     </div>
 
+    <!-- Contatos Ignorados -->
+    <div class="secao">
+        <h2>🚫 Contatos Ignorados</h2>
+        <p style="color:#888;font-size:13px;margin-bottom:16px;">
+            Contatos marcados como "ignorar sempre" no painel. As mensagens deles não aparecem mais na fila de aprovação.
+            Clique em <strong>Reativar</strong> para que voltem a aparecer no painel.
+        </p>
+        <div id="lista-ignorados">
+            <p style="color:#aaa;font-size:13px;">Carregando...</p>
+        </div>
+    </div>
+
 </main>
 
 <script>
@@ -248,6 +260,8 @@
             document.getElementById('custo-mes-val').textContent   = `$${c.custo_mes.toFixed(4)}`;
             document.getElementById('custo-total-val').textContent = `$${c.custo_total.toFixed(4)}`;
         } catch (e) {}
+
+        carregarIgnorados();
     }
 
     async function togglePausa(chk) {
@@ -359,6 +373,48 @@
         const el = document.getElementById(id);
         el.style.display = 'block';
         setTimeout(() => el.style.display = 'none', 3000);
+    }
+
+    async function carregarIgnorados() {
+        try {
+            const res  = await fetch(`${API}/contatos-ignorados`);
+            const lista = await res.json();
+            const div  = document.getElementById('lista-ignorados');
+            if (lista.length === 0) {
+                div.innerHTML = '<p style="color:#aaa;font-size:13px;">Nenhum contato ignorado até agora.</p>';
+                return;
+            }
+            div.innerHTML = lista.map(c => `
+                <div style="display:flex;align-items:center;justify-content:space-between;
+                     padding:10px 14px;border-radius:8px;background:#f8f9fa;margin-bottom:8px;gap:10px;flex-wrap:wrap;">
+                    <div>
+                        <div style="font-weight:bold;font-size:14px;color:#333">${c.nome || 'Sem nome'}</div>
+                        <div style="font-size:12px;color:#888">${c.telefone} &nbsp;·&nbsp; Ignorado em ${c.ignorado_em}</div>
+                    </div>
+                    <button onclick="reativarContato('${c.telefone}', this)"
+                        style="padding:6px 14px;border-radius:8px;border:1px solid #28a745;
+                               background:none;color:#28a745;font-size:12px;cursor:pointer;font-weight:bold;white-space:nowrap;">
+                        ✅ Reativar
+                    </button>
+                </div>`).join('');
+        } catch (e) {
+            document.getElementById('lista-ignorados').innerHTML = '<p style="color:#dc3545;font-size:13px;">Erro ao carregar.</p>';
+        }
+    }
+
+    async function reativarContato(telefone, btn) {
+        btn.disabled = true; btn.textContent = 'Reativando...';
+        try {
+            await fetch(`${API}/ignorar-contato/${telefone}`, { method: 'DELETE' });
+            btn.closest('div[style]').remove();
+            const div = document.getElementById('lista-ignorados');
+            if (!div.querySelector('div[style]')) {
+                div.innerHTML = '<p style="color:#aaa;font-size:13px;">Nenhum contato ignorado até agora.</p>';
+            }
+        } catch (e) {
+            alert('Erro. Tente novamente.');
+            btn.disabled = false; btn.textContent = '✅ Reativar';
+        }
     }
 
     carregar();
