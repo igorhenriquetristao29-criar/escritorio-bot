@@ -14,15 +14,63 @@
         body { font-family: Arial, sans-serif; background: #f0f2f5; }
 
         /* ── LOGIN ── */
-        #tela-login { position: fixed; inset: 0; background: #1a1a2e; display: flex; align-items: center; justify-content: center; z-index: 9999; }
-        .login-box { background: white; border-radius: 16px; padding: 40px 36px; width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); text-align: center; }
-        .login-box h2 { color: #1a1a2e; margin-bottom: 6px; font-size: 22px; }
-        .login-box p { color: #888; font-size: 13px; margin-bottom: 24px; }
-        .login-box input { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; margin-bottom: 14px; outline: none; }
-        .login-box input:focus { border-color: #007bff; }
-        .login-box button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
-        .login-box button:hover { background: #0056b3; }
-        .login-erro { color: #dc3545; font-size: 13px; margin-top: 10px; display: none; }
+        #tela-login {
+            position: fixed; inset: 0; z-index: 9999;
+            background: linear-gradient(160deg, #0d0d1f 0%, #1a1a2e 50%, #12122a 100%);
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 0;
+        }
+        .login-logo {
+            width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+            border: 2px solid rgba(201,168,76,0.4);
+            box-shadow: 0 0 40px rgba(201,168,76,0.15);
+            margin-bottom: 16px;
+            animation: fadeDown 0.6s ease;
+        }
+        .login-titulo {
+            color: white; font-size: 22px; font-weight: bold; letter-spacing: 1px;
+            margin-bottom: 4px; text-align: center;
+            animation: fadeDown 0.7s ease;
+        }
+        .login-subtitulo {
+            color: #c9a84c; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+            margin-bottom: 32px; text-align: center;
+            animation: fadeDown 0.8s ease;
+        }
+        .login-box {
+            background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; padding: 32px 32px 28px; width: 320px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.4); text-align: center;
+            animation: fadeUp 0.7s ease;
+        }
+        .login-box label {
+            display: block; color: #adb5bd; font-size: 11px; letter-spacing: 1px;
+            text-transform: uppercase; text-align: left; margin-bottom: 6px;
+        }
+        .login-box select, .login-box input {
+            width: 100%; padding: 12px 14px;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px; font-size: 14px; margin-bottom: 16px;
+            outline: none; color: white; box-sizing: border-box;
+        }
+        .login-box select option { background: #1a1a2e; color: white; }
+        .login-box input::placeholder { color: rgba(255,255,255,0.35); }
+        .login-box input:focus, .login-box select:focus {
+            border-color: #c9a84c; box-shadow: 0 0 0 2px rgba(201,168,76,0.2);
+        }
+        .login-box button {
+            width: 100%; padding: 13px;
+            background: linear-gradient(135deg, #c9a84c, #a8892e);
+            color: #1a1a2e; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: bold; cursor: pointer;
+            letter-spacing: 0.5px; transition: opacity 0.2s;
+        }
+        .login-box button:hover { opacity: 0.9; }
+        .login-erro { color: #ff6b6b; font-size: 12px; margin-top: 10px; display: none; }
+        .login-rodape { color: rgba(255,255,255,0.2); font-size: 10px; margin-top: 24px; letter-spacing: 1px; }
+        @keyframes fadeDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeUp   { from { opacity:0; transform:translateY(16px);  } to { opacity:1; transform:translateY(0); } }
 
         /* ── CABEÇALHO ── */
         header { background: #1a1a2e; color: white; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
@@ -211,18 +259,26 @@
 
 <!-- ── LOGIN ── -->
 <div id="tela-login">
+    <img src="/logo.png" alt="LM Advocacia" class="login-logo">
+    <div class="login-titulo">Letícia Marques</div>
+    <div class="login-subtitulo">Advocacia &amp; Consultoria</div>
+
     <div class="login-box">
-        <h2>Painel de Atendimento</h2>
-        <p>Letícia Marques Advocacia</p>
-        <select id="campo-usuario" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:14px;outline:none;color:#333">
+        <label>Usuário</label>
+        <select id="campo-usuario">
             <option value="Igor">Igor</option>
             <option value="Letícia">Letícia</option>
         </select>
-        <input type="password" id="campo-senha" placeholder="Digite a senha"
+
+        <label>Senha</label>
+        <input type="password" id="campo-senha" placeholder="••••••••"
                onkeydown="if(event.key==='Enter') entrar()">
-        <button onclick="entrar()">Entrar</button>
+
+        <button onclick="entrar()">ENTRAR</button>
         <div class="login-erro" id="erro-login">Senha incorreta. Tente novamente.</div>
     </div>
+
+    <div class="login-rodape">SISTEMA DE GESTÃO INTERNO</div>
 </div>
 
 <!-- ── MODAIS ── -->
