@@ -401,9 +401,19 @@
     let modeloInsercaoId = null; // qual card vai receber o modelo
 
     // ── AUTENTICAÇÃO ──────────────────────────────────────────────────────────
+    function mostrarApp() {
+        document.getElementById('tela-login').style.display = 'none';
+        document.querySelector('header').style.display = 'flex';
+        document.querySelector('main').style.display   = 'block';
+    }
+
     function verificarLogin() {
+        // Esconde header e main até o login ser confirmado
+        document.querySelector('header').style.display = 'none';
+        document.querySelector('main').style.display   = 'none';
+
         if (localStorage.getItem('painel_logado') === '1') {
-            document.getElementById('tela-login').style.display = 'none';
+            mostrarApp();
             const u = localStorage.getItem('painel_usuario') || '';
             if (u) document.getElementById('header-usuario').textContent = `Olá, ${u}`;
         }
@@ -424,7 +434,7 @@
                 const data = await res.json();
                 localStorage.setItem('painel_logado',  '1');
                 localStorage.setItem('painel_usuario', data.usuario || '');
-                document.getElementById('tela-login').style.display = 'none';
+                mostrarApp();
                 document.getElementById('header-usuario').textContent = `Olá, ${data.usuario || ''}`;
                 carregar();
                 carregarLembretesDia();
