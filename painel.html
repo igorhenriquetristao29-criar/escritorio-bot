@@ -363,6 +363,9 @@
         <button class="btn-atualizar" onclick="carregar()">Atualizar</button>
         <a class="btn-exportar" href="https://web-production-3c5ee.up.railway.app/exportar-csv" target="_blank">Exportar CSV</a>
         <button class="btn-modelos-gerenciar" onclick="abrirGerenciarModelos()">Modelos</button>
+        <button id="btn-som" onclick="toggleSom()"
+                title="Som ativado (clique para silenciar)"
+                style="padding:8px 12px;background:none;border:1px solid #dee2e6;border-radius:8px;cursor:pointer;font-size:16px;">🔔</button>
         <span class="contador" id="contador"></span>
     </div>
     <div class="atalhos-hint">Atalhos: <strong>Enter</strong> = aprovar card focado &nbsp;|&nbsp; <strong>Esc</strong> = fechar modal</div>
@@ -405,6 +408,7 @@
         document.getElementById('tela-login').style.display = 'none';
         document.querySelector('header').style.display = 'flex';
         document.querySelector('main').style.display   = 'block';
+        pedirPermissaoNotificacao();
     }
 
     function verificarLogin() {
@@ -460,22 +464,71 @@
     }
 
     // ── SOM ───────────────────────────────────────────────────────────────────
+    // ── NOTIFICAÇÕES ─────────────────────────────────────────────────────────
+    let somAtivo = localStorage.getItem('som_ativo') !== '0'; // ligado por padrão
+    let tituloOriginal = document.title;
+    let intervaloPiscar = null;
+
     function tocarAlerta() {
+        if (!somAtivo) return;
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            [0, 0.15].forEach(delay => {
+            const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+            // Arpejo musical agradável: Dó → Mi → Sol (C5 → E5 → G5)
+            [[523, 0], [659, 0.18], [784, 0.36]].forEach(([freq, delay]) => {
                 const osc  = ctx.createOscillator();
                 const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = 880;
+                osc.connect(gain); gain.connect(ctx.destination);
                 osc.type = 'sine';
-                gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + 0.3);
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+                gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + delay + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.45);
                 osc.start(ctx.currentTime + delay);
-                osc.stop(ctx.currentTime + delay + 0.3);
+                osc.stop(ctx.currentTime + delay + 0.5);
             });
         } catch (e) {}
+    }
+
+    function notificarNavegador(qtdNovas) {
+        // Título da aba pisca com contador
+        if (intervaloPiscar) clearInterval(intervaloPiscar);
+        let mostrar = true;
+        intervaloPiscar = setInterval(() => {
+            document.title = mostrar ? `🔔 (${qtdNovas}) Nova mensagem!` : tituloOriginal;
+            mostrar = !mostrar;
+        }, 1200);
+        // Para de piscar após 30s ou quando o usuário voltar para a aba
+        setTimeout(() => {
+            clearInterval(intervaloPiscar);
+            intervaloPiscar = null;
+            document.title = tituloOriginal;
+        }, 30000);
+
+        // Notificação do navegador (desktop)
+        if (Notification.permission === 'granted') {
+            new Notification('LM Advocacia — Nova mensagem', {
+                body: `${qtdNovas} nova(s) mensagem(ns) aguardando aprovação`,
+                icon: '/logo.png',
+                badge: '/logo.png',
+                tag: 'lm-painel',
+                renotify: true,
+            });
+        }
+    }
+
+    function pedirPermissaoNotificacao() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }
+
+    function toggleSom() {
+        somAtivo = !somAtivo;
+        localStorage.setItem('som_ativo', somAtivo ? '1' : '0');
+        const btn = document.getElementById('btn-som');
+        btn.textContent = somAtivo ? '🔔' : '🔕';
+        btn.title = somAtivo ? 'Som ativado (clique para silenciar)' : 'Som silenciado (clique para ativar)';
+        if (somAtivo) tocarAlerta(); // toca uma vez para confirmar
     }
 
     // ── TEMPO DE ESPERA ──────────────────────────────────────────────────────
@@ -642,7 +695,11 @@
         try {
             const res   = await fetch(`${API}/pendentes`);
             const dados = await res.json();
-            if (countAnterior !== null && dados.length > countAnterior) tocarAlerta();
+            if (countAnterior !== null && dados.length > countAnterior) {
+                const qtdNovas = dados.length - countAnterior;
+                tocarAlerta();
+                notificarNavegador(qtdNovas);
+            }
             countAnterior = dados.length;
             dadosTodos = dados;
             renderizar();
@@ -1068,6 +1125,20 @@
 
     // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────
     verificarLogin();
+    // Inicializa ícone do botão de som
+    const btnSom = document.getElementById('btn-som');
+    if (btnSom) {
+        btnSom.textContent = somAtivo ? '🔔' : '🔕';
+        btnSom.title = somAtivo ? 'Som ativado (clique para silenciar)' : 'Som silenciado (clique para ativar)';
+    }
+    // Para de piscar o título quando o usuário volta para a aba
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && intervaloPiscar) {
+            clearInterval(intervaloPiscar);
+            intervaloPiscar = null;
+            document.title = tituloOriginal;
+        }
+    });
     if (localStorage.getItem('painel_logado') === '1') {
         carregar();
         carregarLembretesDia();
